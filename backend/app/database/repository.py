@@ -484,209 +484,209 @@ class Repository:
             for r in rows
         ]
 
-# --- TASK STEP METHODS ---
-@staticmethod
-def save_task_step(step):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    sql = (
-        "INSERT OR REPLACE INTO task_steps "
-        "(id, task_id, agent_id, tool_id, step_input, step_output, status, retry_count, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    )
-    cursor.execute(sql, (
-        step.id, step.task_id, step.agent_id, step.tool_id,
-        step.step_input, step.step_output, step.status,
-        step.retry_count, step.created_at
-    ))
-    conn.commit()
-    conn.close()
-    return step
-
-@staticmethod
-def get_task_steps(task_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM task_steps WHERE task_id = ? ORDER BY created_at ASC",
-        (task_id,)
-    )
-    rows = cursor.fetchall()
-    conn.close()
-    return [
-        TaskStep(
-            id=r["id"], task_id=r["task_id"], agent_id=r["agent_id"],
-            tool_id=r["tool_id"], step_input=r["step_input"],
-            step_output=r["step_output"], status=r["status"],
-            retry_count=r["retry_count"], created_at=r["created_at"]
+    # --- TASK STEP METHODS ---
+    @staticmethod
+    def save_task_step(step):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        sql = (
+            "INSERT OR REPLACE INTO task_steps "
+            "(id, task_id, agent_id, tool_id, step_input, step_output, status, retry_count, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         )
-        for r in rows
-    ]
+        cursor.execute(sql, (
+            step.id, step.task_id, step.agent_id, step.tool_id,
+            step.step_input, step.step_output, step.status,
+            step.retry_count, step.created_at
+        ))
+        conn.commit()
+        conn.close()
+        return step
 
-# --- ARTIFACT METHODS ---
-@staticmethod
-def save_artifact(artifact):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    sql = (
-        "INSERT OR REPLACE INTO artifacts "
-        "(id, task_id, artifact_type, path, reference, metadata, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)"
-    )
-    cursor.execute(sql, (
-        artifact.id, artifact.task_id, artifact.artifact_type,
-        artifact.path, artifact.reference,
-        json.dumps(artifact.metadata) if artifact.metadata else None,
-        artifact.created_at
-    ))
-    conn.commit()
-    conn.close()
-    return artifact
-
-@staticmethod
-def get_task_artifacts(task_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM artifacts WHERE task_id = ? ORDER BY created_at ASC",
-        (task_id,)
-    )
-    rows = cursor.fetchall()
-    conn.close()
-    return [
-        Artifact(
-            id=r["id"], task_id=r["task_id"], artifact_type=r["artifact_type"],
-            path=r["path"], reference=r["reference"],
-            metadata=json.loads(r["metadata"]) if r["metadata"] else None,
-            created_at=r["created_at"]
-        )
-        for r in rows
-    ]
-
-# --- SKILL METHODS ---
-@staticmethod
-def save_skill(skill):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    sql = (
-        "INSERT OR REPLACE INTO skills "
-        "(id, name, description, procedure, required_tools, version, "
-        " status, learned_corrections, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-    )
-    cursor.execute(sql, (
-        skill.id, skill.name, skill.description, skill.procedure,
-        json.dumps(skill.required_tools), skill.version, skill.status,
-        skill.learned_corrections, skill.created_at, skill.updated_at
-    ))
-    conn.commit()
-    conn.close()
-    return skill
-
-@staticmethod
-def _row_to_skill(row):
-    return SkillRecord(
-        id=row["id"], name=row["name"], description=row["description"],
-        procedure=row["procedure"],
-        required_tools=json.loads(row["required_tools"]),
-        version=row["version"], status=row["status"],
-        learned_corrections=row["learned_corrections"],
-        created_at=row["created_at"], updated_at=row["updated_at"]
-    )
-
-@staticmethod
-def get_skill(skill_id):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM skills WHERE id = ?", (skill_id,))
-    row = cursor.fetchone()
-    conn.close()
-    if not row:
-        return None
-    return Repository._row_to_skill(row)
-
-@staticmethod
-def get_skill_by_name(name):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM skills WHERE name = ? LIMIT 1", (name,))
-    row = cursor.fetchone()
-    conn.close()
-    if not row:
-        return None
-    return Repository._row_to_skill(row)
-
-@staticmethod
-def list_skills(status=None):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    if status:
+    @staticmethod
+    def get_task_steps(task_id):
+        conn = get_db_connection()
+        cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM skills WHERE status = ? ORDER BY name ASC",
-            (status,)
+            "SELECT * FROM task_steps WHERE task_id = ? ORDER BY created_at ASC",
+            (task_id,)
         )
-    else:
+        rows = cursor.fetchall()
+        conn.close()
+        return [
+            TaskStep(
+                id=r["id"], task_id=r["task_id"], agent_id=r["agent_id"],
+                tool_id=r["tool_id"], step_input=r["step_input"],
+                step_output=r["step_output"], status=r["status"],
+                retry_count=r["retry_count"], created_at=r["created_at"]
+            )
+            for r in rows
+        ]
+
+    # --- ARTIFACT METHODS ---
+    @staticmethod
+    def save_artifact(artifact):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        sql = (
+            "INSERT OR REPLACE INTO artifacts "
+            "(id, task_id, artifact_type, path, reference, metadata, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)"
+        )
+        cursor.execute(sql, (
+            artifact.id, artifact.task_id, artifact.artifact_type,
+            artifact.path, artifact.reference,
+            json.dumps(artifact.metadata) if artifact.metadata else None,
+            artifact.created_at
+        ))
+        conn.commit()
+        conn.close()
+        return artifact
+
+    @staticmethod
+    def get_task_artifacts(task_id):
+        conn = get_db_connection()
+        cursor = conn.cursor()
         cursor.execute(
-            "SELECT * FROM skills WHERE status != 'deprecated' ORDER BY name ASC"
+            "SELECT * FROM artifacts WHERE task_id = ? ORDER BY created_at ASC",
+            (task_id,)
         )
-    rows = cursor.fetchall()
-    conn.close()
-    return [Repository._row_to_skill(r) for r in rows]
+        rows = cursor.fetchall()
+        conn.close()
+        return [
+            Artifact(
+                id=r["id"], task_id=r["task_id"], artifact_type=r["artifact_type"],
+                path=r["path"], reference=r["reference"],
+                metadata=json.loads(r["metadata"]) if r["metadata"] else None,
+                created_at=r["created_at"]
+            )
+            for r in rows
+        ]
 
-# --- METRICS METHOD ---
-@staticmethod
-def get_metrics():
-    """Compute office-wide metrics for the dashboard."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
+    # --- SKILL METHODS ---
+    @staticmethod
+    def save_skill(skill):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        sql = (
+            "INSERT OR REPLACE INTO skills "
+            "(id, name, description, procedure, required_tools, version, "
+            " status, learned_corrections, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        cursor.execute(sql, (
+            skill.id, skill.name, skill.description, skill.procedure,
+            json.dumps(skill.required_tools), skill.version, skill.status,
+            skill.learned_corrections, skill.created_at, skill.updated_at
+        ))
+        conn.commit()
+        conn.close()
+        return skill
 
-    cursor.execute(
-        "SELECT COUNT(*) as cnt FROM tasks "
-        "WHERE assigned_agent_id != 'tool_runner' OR assigned_agent_id IS NULL"
-    )
-    total_tasks = cursor.fetchone()["cnt"]
+    @staticmethod
+    def _row_to_skill(row):
+        return SkillRecord(
+            id=row["id"], name=row["name"], description=row["description"],
+            procedure=row["procedure"],
+            required_tools=json.loads(row["required_tools"]),
+            version=row["version"], status=row["status"],
+            learned_corrections=row["learned_corrections"],
+            created_at=row["created_at"], updated_at=row["updated_at"]
+        )
 
-    cursor.execute(
-        "SELECT COUNT(*) as cnt FROM tasks WHERE status = 'completed' "
-        "AND (assigned_agent_id != 'tool_runner' OR assigned_agent_id IS NULL)"
-    )
-    completed_tasks = cursor.fetchone()["cnt"]
+    @staticmethod
+    def get_skill(skill_id):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM skills WHERE id = ?", (skill_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return None
+        return Repository._row_to_skill(row)
 
-    cursor.execute("SELECT COUNT(*) as cnt FROM tasks WHERE status = 'failed'")
-    failed_tasks = cursor.fetchone()["cnt"]
+    @staticmethod
+    def get_skill_by_name(name):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM skills WHERE name = ? LIMIT 1", (name,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return None
+        return Repository._row_to_skill(row)
 
-    cursor.execute(
-        "SELECT AVG(latency_ms) as avg_lat FROM tasks WHERE status = 'completed'"
-    )
-    avg_latency_ms = cursor.fetchone()["avg_lat"] or 0.0
+    @staticmethod
+    def list_skills(status=None):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        if status:
+            cursor.execute(
+                "SELECT * FROM skills WHERE status = ? ORDER BY name ASC",
+                (status,)
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM skills WHERE status != 'deprecated' ORDER BY name ASC"
+            )
+        rows = cursor.fetchall()
+        conn.close()
+        return [Repository._row_to_skill(r) for r in rows]
 
-    cursor.execute(
-        "SELECT SUM(tokens_used) as total_tok, SUM(cost_usd) as total_cost FROM tasks"
-    )
-    row = cursor.fetchone()
-    total_tokens = row["total_tok"] or 0
-    total_cost_usd = row["total_cost"] or 0.0
+    # --- METRICS METHOD ---
+    @staticmethod
+    def get_metrics():
+        """Compute office-wide metrics for the dashboard."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
 
-    cursor.execute("SELECT SUM(retries) as total_ret FROM tasks")
-    total_retries = cursor.fetchone()["total_ret"] or 0
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM tasks "
+            "WHERE assigned_agent_id != 'tool_runner' OR assigned_agent_id IS NULL"
+        )
+        total_tasks = cursor.fetchone()["cnt"]
 
-    cursor.execute(
-        "SELECT assigned_agent_id, COUNT(*) as cnt FROM tasks "
-        "WHERE assigned_agent_id IS NOT NULL AND assigned_agent_id != 'tool_runner' "
-        "GROUP BY assigned_agent_id"
-    )
-    agent_counts = {r["assigned_agent_id"]: r["cnt"] for r in cursor.fetchall()}
-    conn.close()
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM tasks WHERE status = 'completed' "
+            "AND (assigned_agent_id != 'tool_runner' OR assigned_agent_id IS NULL)"
+        )
+        completed_tasks = cursor.fetchone()["cnt"]
 
-    success_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
-    return OfficeMetrics(
-        total_tasks=total_tasks,
-        completed_tasks=completed_tasks,
-        failed_tasks=failed_tasks,
-        success_rate=round(success_rate, 1),
-        avg_latency_ms=round(avg_latency_ms, 1),
-        total_tokens=total_tokens,
-        total_cost_usd=round(total_cost_usd, 6),
-        total_retries=total_retries,
-        agent_task_counts=agent_counts
-    )
+        cursor.execute("SELECT COUNT(*) as cnt FROM tasks WHERE status = 'failed'")
+        failed_tasks = cursor.fetchone()["cnt"]
+
+        cursor.execute(
+            "SELECT AVG(latency_ms) as avg_lat FROM tasks WHERE status = 'completed'"
+        )
+        avg_latency_ms = cursor.fetchone()["avg_lat"] or 0.0
+
+        cursor.execute(
+            "SELECT SUM(tokens_used) as total_tok, SUM(cost_usd) as total_cost FROM tasks"
+        )
+        row = cursor.fetchone()
+        total_tokens = row["total_tok"] or 0
+        total_cost_usd = row["total_cost"] or 0.0
+
+        cursor.execute("SELECT SUM(retries) as total_ret FROM tasks")
+        total_retries = cursor.fetchone()["total_ret"] or 0
+
+        cursor.execute(
+            "SELECT assigned_agent_id, COUNT(*) as cnt FROM tasks "
+            "WHERE assigned_agent_id IS NOT NULL AND assigned_agent_id != 'tool_runner' "
+            "GROUP BY assigned_agent_id"
+        )
+        agent_counts = {r["assigned_agent_id"]: r["cnt"] for r in cursor.fetchall()}
+        conn.close()
+
+        success_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0.0
+        return OfficeMetrics(
+            total_tasks=total_tasks,
+            completed_tasks=completed_tasks,
+            failed_tasks=failed_tasks,
+            success_rate=round(success_rate, 1),
+            avg_latency_ms=round(avg_latency_ms, 1),
+            total_tokens=total_tokens,
+            total_cost_usd=round(total_cost_usd, 6),
+            total_retries=total_retries,
+            agent_task_counts=agent_counts
+        )
