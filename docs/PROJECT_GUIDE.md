@@ -6,6 +6,9 @@ This guide provides an in-depth, technical walkthrough of the **Agentic AI Offic
 
 ## 🏗️ Architectural Philosophy
 
+![Agentic AI Office System Architecture](assets/architecture.png)
+*Figure: End-to-end system topology, router, LangGraph multi-agent execution pipeline, and memory integration.*
+
 The system is designed with 4 guiding tenets:
 1. **Single Generic Agent Model**: Instead of creating rigid class hierarchies (`CodingAgent`, `FinanceAgent`, `ResearchAgent`), there is exactly **ONE** `GenericAgent` class whose role, behavior, tool access, and memories are defined declaratively via `AgentConfig`.
 2. **LangGraph as the Workflow Engine**: Workflows are governed by a stateful, cyclic directed graph (`StateGraph(AgentOfficeState)`) with explicit conditional edges, evaluation checks, and bounded loop counters.

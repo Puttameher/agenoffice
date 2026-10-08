@@ -81,6 +81,9 @@ Users interact with an AI organization led by **Manager Jordan (CEO / Orchestrat
 
 ## 2. System Architecture & Topology
 
+![Agentic AI Office Architecture](assets/architecture.png)
+*Figure 1. Target high-level architecture. The office UI is the observable surface; the personal agent core performs the work.*
+
 ```mermaid
 graph TD
     User([👤 User]) -->|Prompt / Dictation| Frontend[Frontend UI & Canvas]

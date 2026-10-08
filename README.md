@@ -10,6 +10,13 @@ A local-first, minimal, genuinely functional virtual AI company built with **Pyt
 
 ---
 
+## 🏛️ System Architecture
+
+![Agentic AI Office Architecture](docs/assets/architecture.png)
+*Figure 1: High-level system architecture — connecting the interactive 2D Office UI, FastAPI routes, 3-way intent router, LangGraph multi-agent execution pipeline, memory compression, and tools layer.*
+
+---
+
 ## 🌟 Core Concepts Demonstrated
 
 1. **Generic AI Agent**: A single, reusable agent engine driven by structured configuration (`AgentConfig`), dynamic tools, memory notes, and injected experiences.
