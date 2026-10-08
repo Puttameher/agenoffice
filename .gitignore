@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Environment Variables & Secrets (CRITICAL)
+.env
+*.env.local
+
+# Databases & Runtime storage
+*.db
+*.sqlite
+*.sqlite3
+backend/data/*.db
+backend/app/database/*.db
+
+# Pytest / Testing caches
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Runtime task workspaces / agent sandboxes
+workspaces/
+
+# Editor / IDE artifacts
+.kilo/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Personal / Coursework scratch files
+FIN314_Academic_Task_1_Putta_Meher_Prakash.pdf
+lpu_logo_0.png
+generate_report.py
+prd_content.txt

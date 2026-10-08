@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AGENTIC AI OFFICE - Autonomous AI Workforce</title>
+  <meta name="description" content="A 2D pixel-art office simulation of an autonomous AI company with LangGraph orchestration, dynamic agents, RAG, and memory adaptation.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Press+Start+2P&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Top Minimal HUD Header -->
+    <header class="app-header">
+      <!-- Minimalist Clean Brand Header -->
+      <div class="brand-minimal">
+        <div class="brand-mark">
+          <!-- Playful character face logo mark -->
+          <svg width="24" height="24" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="46" fill="#FFFFFF"/>
+            <rect x="34" y="47" width="13.5" height="28" rx="6.75" transform="rotate(25 40.75 61)" fill="#0d1117"/>
+            <rect x="58" y="50" width="13.5" height="28" rx="6.75" transform="rotate(25 64.75 64)" fill="#0d1117"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1 class="brand-title">Agent Office</h1>
+          <span class="brand-badge">Autonomous</span>
+        </div>
+      </div>
+      
+      <!-- Live Metrics Bar -->
+      <div class="header-metrics">
+        <div class="metric-card" id="btn-metric-agents" title="Workforce Roster">
+          <span class="metric-label">AGENTS</span>
+          <span class="metric-value" id="metric-agents">6</span>
+        </div>
+        <div class="metric-card" id="btn-metric-tasks" title="Active Tasks">
+          <span class="metric-label">TASKS</span>
+          <span class="metric-value" id="metric-active-tasks">0</span>
+        </div>
+        <div class="metric-card" title="Completed Operations">
+          <span class="metric-label">DONE</span>
+          <span class="metric-value" id="metric-completed">0</span>
+        </div>
+        <div class="metric-card" id="btn-metric-exp" title="Learned Experiences">
+          <span class="metric-label">EXP</span>
+          <span class="metric-value" id="metric-experiences">0</span>
+        </div>
+        <div class="metric-card" id="btn-metric-tokens" title="Total Tokens Consumed">
+          <span class="metric-label">TOKENS</span>
+          <span class="metric-value" id="metric-tokens">0</span>
+        </div>
+        <div class="metric-card" id="btn-metric-cost" title="Total API Cost">
+          <span class="metric-label">COST</span>
+          <span class="metric-value" id="metric-cost">$0.00</span>
+        </div>
+
+        <div class="status-badge connected" id="ws-status" title="Live Engine Connection">
+          <span class="status-dot"></span>
+          <span id="ws-status-text">LIVE</span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="header-actions">
+          <button class="btn btn-primary btn-sm" id="nav-dispatch-btn" title="Open Glassmorphic Chat">
+            <span>💬 Chat</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" id="nav-hire-btn" title="Hire Agent via Prompt">
+            <span>+ Add Agent</span>
+          </button>
+          <button class="btn btn-icon btn-sm" id="nav-night-btn" title="Toggle Day / Night Lighting">
+            <span id="night-icon">🌙</span>
+          </button>
+          <button class="btn btn-icon btn-sm" id="nav-events-btn" title="Live Event Feed">
+            <span>📜 Feed</span>
+          </button>
+          <button class="btn btn-icon btn-sm" id="nav-sound-btn" title="Audio Effects">
+            <span id="sound-icon">🔊</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Viewport: The Interactive 2D Office -->
+    <main class="canvas-viewport">
+
+      <div class="canvas-outer-frame">
+        <canvas id="office-canvas" width="1200" height="800"></canvas>
+        
+        <!-- Interactive Tooltip Overlay -->
+        <div id="office-tooltip" class="canvas-tooltip"></div>
+      </div>
+    </main>
+
+    <!-- MINIMALIST GLASSMORPHIC SIDE CHAT PANEL -->
+    <div class="side-drawer chat-glass-panel" id="task-drawer">
+      <div class="drawer-header chat-drawer-header">
+        <div class="chat-header-meta">
+          <div class="claude-greeting-row">
+            <div class="greeting-brand-icon">
+              <svg width="22" height="22" viewBox="0 0 100 100" fill="none">
+                <circle cx="50" cy="50" r="46" fill="#FFFFFF"/>
+                <rect x="34" y="47" width="13.5" height="28" rx="6.75" transform="rotate(25 40.75 61)" fill="#0d1117"/>
+                <rect x="58" y="50" width="13.5" height="28" rx="6.75" transform="rotate(25 64.75 64)" fill="#0d1117"/>
+              </svg>
+            </div>
+            <h2 class="chat-title claude-title">Back at it, Meher</h2>
+          </div>
+          <p class="chat-subtitle">Your personal AI runtime. Type <code>/</code> for skills.</p>
+        </div>
+        <div class="drawer-header-actions">
+          <button type="button" class="dock-btn toggle-dock-btn" title="Toggle Dock Side (Left / Right)">⇋ Dock</button>
+          <button class="close-btn" id="close-task-drawer" title="Close Chat">✕</button>
+        </div>
+      </div>
+
+      <!-- Scrollable Message Stream -->
+      <div class="chat-messages-container" id="chat-messages-container">
+        <div class="chat-msg chat-msg-assistant">
+          <div class="chat-avatar assistant-avatar">A</div>
+          <div class="chat-bubble-wrap">
+            <div class="chat-bubble">
+              Hey Meher! Ready to work &mdash; just type your task or question.<br><br>
+              <span class="sandbox-notice-pill" id="chat-status-pill">⚡ Engine Ready</span><br>
+              Use <code>/skills</code> to see available skills, or just start typing.
+            </div>
+            <div class="chat-timestamp">Assistant</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Thinking / Live Status Bubble (managed dynamically) -->
+      <div class="chat-typing-container" id="chat-typing-container" style="display: none;">
+        <div class="chat-msg chat-msg-assistant">
+          <div class="chat-avatar assistant-avatar">A</div>
+          <div class="chat-bubble-wrap">
+            <div class="chat-bubble thinking-bubble">
+              <span class="thinking-dots"><span></span><span></span><span></span></span>
+              <span class="thinking-label" id="active-task-step">Thinking...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Claude-Style Prompt Capsule -->
+      <div class="chat-input-bar">
+        <!-- Floating Slash Commands Palette -->
+        <div class="slash-commands-popup" id="slash-commands-popup" style="display: none;">
+          <div class="slash-popup-header">
+            <span>⚡ Skills & Quick Actions</span>
+            <span class="slash-esc-hint">Esc to close</span>
+          </div>
+          <div class="slash-popup-list" id="slash-popup-list">
+            <div class="slash-item" data-cmd="/python">
+              <span class="slash-icon">🐍</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/python</span>
+                <span class="slash-desc">Execute code in safe Python sandbox</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/calc">
+              <span class="slash-icon">🧮</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/calc</span>
+                <span class="slash-desc">Math & financial compound calculations</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/rag">
+              <span class="slash-icon">📚</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/rag</span>
+                <span class="slash-desc">Query internal company policy & guidelines</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/swarm">
+              <span class="slash-icon">🐝</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/swarm</span>
+                <span class="slash-desc">Multi-agent collaborative execution with peer audit</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/hire">
+              <span class="slash-icon">✨</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/hire</span>
+                <span class="slash-desc">Spawn or hire a new specialist agent</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/clear">
+              <span class="slash-icon">🧹</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/clear</span>
+                <span class="slash-desc">Reset conversation and start fresh session</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/skills">
+              <span class="slash-icon">⚡</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/skills</span>
+                <span class="slash-desc">List all available agent skills</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/models">
+              <span class="slash-icon">🤖</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/models</span>
+                <span class="slash-desc">Switch active LLM model</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/memory">
+              <span class="slash-icon">💡</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/memory</span>
+                <span class="slash-desc">View organizational memory bank</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/status">
+              <span class="slash-icon">🖥️</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/status</span>
+                <span class="slash-desc">Office and engine status overview</span>
+              </div>
+            </div>
+            <div class="slash-item" data-cmd="/agents">
+              <span class="slash-icon">👥</span>
+              <div class="slash-info">
+                <span class="slash-cmd">/agents</span>
+                <span class="slash-desc">Hire or manage agents</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <form id="task-form" class="chat-form">
+          <div class="claude-prompt-capsule" id="claude-capsule">
+            <textarea id="task-input" rows="1" placeholder="Type / for skills"></textarea>
+            
+            <div class="capsule-toolbar">
+              <!-- Left Toolbar: '+' button -->
+              <div class="capsule-toolbar-left">
+                <button type="button" class="capsule-btn btn-plus-action" id="btn-plus-action" title="Add skill or quick action">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Right Toolbar: Model Pill, Dictate Mic, Send -->
+              <div class="capsule-toolbar-right">
+                <!-- Active Model Pill with Dropdown Chevron -->
+                <div class="active-model-pill" id="active-model-pill" title="Select Model Engine">
+                  <span class="model-pill-name" id="model-pill-name">Hermes 3 70B</span>
+                  <svg class="model-pill-chevron" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </div>
+
+                <!-- Floating Model Picker Dropdown Popover -->
+                <div class="model-picker-popover" id="model-picker-popover" style="display: none;">
+                  <div class="model-picker-header">
+                    <div class="picker-api-status">
+                      <span class="picker-status-dot" id="picker-status-dot"></span>
+                      <div class="picker-api-info">
+                        <span class="picker-api-title" id="picker-api-title">Active API: OpenRouter</span>
+                        <span class="picker-api-endpoint" id="picker-api-endpoint">https://openrouter.ai/api/v1</span>
+                      </div>
+                    </div>
+                    <span class="picker-live-badge" id="picker-live-badge">LIVE API</span>
+                  </div>
+
+                  <div class="picker-provider-tabs" id="picker-provider-tabs">
+                    <!-- Tab buttons populated dynamically -->
+                  </div>
+
+                  <div class="picker-models-list" id="picker-models-list">
+                    <!-- Model items populated dynamically -->
+                  </div>
+
+                  <div class="picker-footer">
+                    <button type="button" class="btn-picker-settings" id="btn-picker-open-settings">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                      </svg>
+                      <span>API Keys & Endpoint Settings</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Hidden Model Dropdown for Select fallback -->
+                <select id="chat-model-select" class="chat-model-select" style="display: none;">
+                  <option value="nousresearch/hermes-3-llama-3.1-70b">🔮 Hermes 3 70B</option>
+                  <option value="nousresearch/hermes-3-llama-3.1-405b">🔮 Hermes 3 405B</option>
+                  <option value="anthropic/claude-3.5-sonnet">⚡ Claude 3.5 Sonnet</option>
+                  <option value="deepseek/deepseek-r1">🧠 DeepSeek R1</option>
+                  <option value="meta-llama/llama-3.3-70b-instruct">🦙 Llama 3.3 70B</option>
+                  <option value="gpt-4o-mini">🤖 GPT-4o Mini</option>
+                  <option value="gpt-4o">⚡ GPT-4o</option>
+                </select>
+
+                <!-- Microphone Dictation (Speech-to-Text) Button -->
+                <button type="button" class="capsule-icon-btn" id="btn-mic-dictate" title="Dictate message (Speech-to-Text)">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                  </svg>
+                </button>
+
+                <!-- Key trigger button / modal access -->
+                <button type="button" class="capsule-icon-btn btn-key-trigger" id="btn-api-key" title="API Key & Model Settings">
+                  <span class="key-status-dot" id="api-status-dot"></span>
+                </button>
+
+                <!-- Submit Button -->
+                <button type="submit" class="capsule-send-btn" id="dispatch-btn" title="Send message (⏎)">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Sleek Glassmorphism Model & API Key Settings Modal -->
+      <div class="api-modal-backdrop" id="api-modal-backdrop" style="display: none;">
+        <div class="api-modal-card">
+          <div class="api-modal-header">
+            <div class="api-modal-title">
+              <span class="modal-icon">⚡</span>
+              <h3>Model & API Settings</h3>
+            </div>
+            <button type="button" class="close-btn" id="close-api-modal">✕</button>
+          </div>
+
+          <div class="api-modal-body">
+            <div class="api-form-group">
+              <label for="modal-provider-select">Active Model Preset</label>
+              <select id="modal-provider-select" class="api-select">
+                <optgroup label="OpenRouter Cloud (Live API)">
+                  <option value="nousresearch/hermes-3-llama-3.1-70b">Nous Hermes 3 70B (Recommended)</option>
+                  <option value="nousresearch/hermes-3-llama-3.1-405b">Nous Hermes 3 405B (Flagship)</option>
+                  <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Elite Code)</option>
+                  <option value="deepseek/deepseek-r1">DeepSeek R1 (Reasoning)</option>
+                  <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B (Instruction)</option>
+                  <option value="openai/gpt-4o">GPT-4o (OpenRouter)</option>
+                  <option value="openai/gpt-4o-mini">GPT-4o Mini (OpenRouter)</option>
+                </optgroup>
+                <optgroup label="OpenAI Direct">
+                  <option value="gpt-4o-mini">OpenAI GPT-4o Mini</option>
+                  <option value="gpt-4o">OpenAI GPT-4o</option>
+                  <option value="o3-mini">OpenAI o3-mini</option>
+                  <option value="o1">OpenAI o1</option>
+                </optgroup>
+                <optgroup label="Local / Custom">
+                  <option value="hermes-3-ollama">Nous Hermes 3 (Local Ollama)</option>
+                  <option value="custom">Custom OpenAI-Compatible Endpoint</option>
+                </optgroup>
+              </select>
+            </div>
+
+            <div class="api-form-group">
+              <label for="modal-api-key-input">API Key</label>
+              <div class="api-input-with-badge">
+                <input type="password" id="modal-api-key-input" class="api-input" placeholder="sk-... (paste key here)">
+                <button type="button" class="btn-toggle-mask" id="btn-toggle-key-mask" title="Show / Hide">👁</button>
+              </div>
+              <p class="api-hint" id="modal-key-hint">Enter your OpenAI or OpenRouter API key. For local Ollama, leave blank or use 'ollama'.</p>
+            </div>
+
+            <div class="api-form-group">
+              <label for="modal-base-url-input">Base URL (Endpoint)</label>
+              <input type="text" id="modal-base-url-input" class="api-input" placeholder="https://api.openai.com/v1">
+              <p class="api-hint">OpenRouter: <code>https://openrouter.ai/api/v1</code> • Ollama: <code>http://localhost:11434/v1</code></p>
+            </div>
+
+            <div class="api-status-banner" id="modal-status-banner">
+              <span class="banner-dot" id="modal-banner-dot"></span>
+              <span id="modal-banner-text">Simulated Sandbox Mode (No Key)</span>
+            </div>
+          </div>
+
+          <div class="api-modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-test-api-modal" title="Test authentication and connection">⚡ Test Connection</button>
+            <div class="footer-actions-right">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-api-modal">Cancel</button>
+              <button type="button" class="btn btn-accent btn-sm" id="btn-save-api-modal">Save & Connect</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Hidden compatibility stubs for background events -->
+      <div style="display:none;" id="legacy-compat-container" aria-hidden="true">
+        <span id="active-task-title"></span>
+        <span id="active-task-sub"></span>
+        <div id="dialogue-container"><div id="agent-dialogue-feed"></div></div>
+        <div id="result-container">
+          <span id="eval-score-badge"></span>
+          <span id="eval-reason-box"></span>
+          <span id="result-agent-name"></span>
+          <span id="result-output-text"></span>
+          <span id="res-tokens"></span>
+          <span id="res-latency"></span>
+          <span id="res-cost"></span>
+          <span id="res-swarm-pill"></span>
+          <button id="tab-btn-briefing"></button>
+          <button id="tab-btn-chart"></button>
+          <button id="tab-btn-code"></button>
+          <div id="tab-content-briefing"></div>
+          <div id="tab-content-chart"><canvas id="artifact-chart-canvas"></canvas></div>
+          <div id="tab-content-code"><code id="code-sandbox-content"></code><pre id="console-output-pre"></pre></div>
+          <div id="feedback-box">
+            <div id="star-rating"><span class="star" data-rating="1"></span></div>
+            <input id="feedback-comment">
+            <button id="submit-feedback-btn"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FLOATING DRAWER: AGENT INSPECTION CARD -->
+    <div class="side-drawer" id="agent-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="drawer-icon" id="agent-drawer-icon">👤</span>
+          <h2 id="agent-drawer-name">Agent Profile</h2>
+        </div>
+        <div class="drawer-header-actions">
+          <button type="button" class="dock-btn toggle-dock-btn" title="Toggle Dock Side (Left / Right)">⇋ Dock Left</button>
+          <button class="close-btn" id="close-agent-drawer">✕</button>
+        </div>
+      </div>
+
+      <div class="drawer-content" id="agent-drawer-content">
+        <!-- Filled dynamically -->
+      </div>
+    </div>
+
+    <!-- FLOATING DRAWER: HIRE NEW AGENT -->
+    <div class="side-drawer" id="hire-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <!-- Playful character face logo in drawer header -->
+          <svg width="22" height="22" viewBox="0 0 100 100" fill="none" style="flex-shrink:0">
+            <circle cx="50" cy="50" r="46" fill="#FFFFFF"/>
+            <rect x="34" y="47" width="13.5" height="28" rx="6.75" transform="rotate(25 40.75 61)" fill="#0d1117"/>
+            <rect x="58" y="50" width="13.5" height="28" rx="6.75" transform="rotate(25 64.75 64)" fill="#0d1117"/>
+          </svg>
+          <h2>Add New Agent</h2>
+        </div>
+        <div class="drawer-header-actions">
+          <button type="button" class="dock-btn toggle-dock-btn" title="Toggle Dock Side">⇋ Dock</button>
+          <button class="close-btn" id="close-hire-drawer">✕</button>
+        </div>
+      </div>
+
+      <div class="drawer-content">
+        <form id="hire-form">
+
+          <!-- Name -->
+          <div class="agent-form-field">
+            <label class="agent-form-label" for="hire-name-input">Name</label>
+            <input type="text" id="hire-name-input" class="agent-form-input" placeholder="e.g. Marcus" autocomplete="off">
+          </div>
+
+          <!-- Description / Role -->
+          <div class="agent-form-field">
+            <label class="agent-form-label" for="hire-desc-input">Description <span class="field-hint">— what this agent does</span></label>
+            <textarea id="hire-desc-input" class="agent-form-textarea" rows="2" placeholder="e.g. Security architect who audits code for vulnerabilities."></textarea>
+          </div>
+
+          <!-- System Prompt -->
+          <div class="agent-form-field">
+            <label class="agent-form-label" for="hire-prompt-input">System Prompt <span class="field-hint">— auto-generated, editable</span></label>
+            <textarea id="hire-prompt-input" class="agent-form-textarea" rows="4" placeholder='Describe the agent fully, or leave blank to auto-generate from description.'></textarea>
+          </div>
+
+          <!-- Tools -->
+          <div class="agent-form-field">
+            <label class="agent-form-label">Tools</label>
+            <div class="agent-tool-checks">
+              <label class="tool-check"><input type="checkbox" name="hire-tool" value="calculator"> 🧮 Calculator</label>
+              <label class="tool-check"><input type="checkbox" name="hire-tool" value="python_runner"> 🐍 Python Runner</label>
+              <label class="tool-check"><input type="checkbox" name="hire-tool" value="browser"> 🌐 Browser</label>
+              <label class="tool-check"><input type="checkbox" name="hire-tool" value="file_reader"> 📄 File Reader</label>
+              <label class="tool-check"><input type="checkbox" name="hire-tool" value="obsidian"> 📖 Obsidian</label>
+            </div>
+          </div>
+
+          <!-- Model -->
+          <div class="agent-form-field">
+            <label class="agent-form-label" for="hire-model-select">Model</label>
+            <select id="hire-model-select" class="agent-form-select">
+              <option value="">— same as global setting —</option>
+              <option value="gpt-4o-mini">GPT-4o Mini</option>
+              <option value="gpt-4o">GPT-4o</option>
+              <option value="hermes-3-openrouter">Hermes 3 (OpenRouter)</option>
+              <option value="hermes-3-ollama">Hermes 3 (Ollama)</option>
+            </select>
+          </div>
+
+          <!-- Memory toggle -->
+          <div class="agent-form-field agent-form-toggle-row">
+            <label class="agent-form-label">Memory</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="hire-memory-toggle" checked>
+              <span class="toggle-track"></span>
+            </label>
+            <span class="field-hint">Agent learns from past tasks</span>
+          </div>
+
+          <div class="form-actions" style="margin-top: 16px;">
+            <button type="submit" class="btn btn-primary" id="hire-btn">
+              <span>✨ Create Agent</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- FLOATING DRAWER: LIVE EVENT LOG -->
+    <div class="side-drawer" id="events-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="drawer-icon">📜</span>
+          <h2>LIVE EVENT STREAM</h2>
+        </div>
+        <div class="drawer-header-actions">
+          <button class="btn-text" id="clear-events-btn">Clear</button>
+          <button type="button" class="dock-btn toggle-dock-btn" title="Toggle Dock Side (Left / Right)">⇋ Dock Left</button>
+          <button class="close-btn" id="close-events-drawer">✕</button>
+        </div>
+      </div>
+
+      <div class="drawer-content">
+        <div class="event-feed" id="event-feed">
+          <!-- Populated in real time via WebSocket -->
+        </div>
+      </div>
+    </div>
+
+    <!-- FLOATING DRAWER: EXPERIENCE BANK -->
+    <div class="side-drawer" id="exp-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title-group">
+          <span class="drawer-icon">💡</span>
+          <h2>ORGANIZATIONAL EXPERIENCES</h2>
+        </div>
+        <div class="drawer-header-actions">
+          <button type="button" class="dock-btn toggle-dock-btn" title="Toggle Dock Side (Left / Right)">⇋ Dock Left</button>
+          <button class="close-btn" id="close-exp-drawer">✕</button>
+        </div>
+      </div>
+
+      <div class="drawer-content">
+        <div class="experience-feed" id="experience-feed">
+          <!-- Populated from API -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ROOM DETAILS MODAL -->
+    <div class="modal-backdrop" id="room-modal" style="display: none;">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 id="room-modal-title">Room Details</h3>
+          <button class="close-btn" id="close-room-modal">✕</button>
+        </div>
+        <div class="modal-body" id="room-modal-body">
+          <!-- Content dynamically rendered -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="src/main.js?v=20260919_1"></script>
+</body>
+</html>
