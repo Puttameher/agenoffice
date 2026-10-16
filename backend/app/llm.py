@@ -517,8 +517,17 @@ if __name__ == "__main__":
         return "I have processed the request according to the assigned instructions and verified the result."
 
 
-# Available providers and model catalogs (OpenRouter & OpenAI)
+# Available providers and model catalogs (Groq, OpenRouter & OpenAI)
 PROVIDER_CATALOG = {
+    "groq": {
+        "name": "Groq",
+        "default_base_url": "https://api.groq.com/openai/v1",
+        "models": [
+            {"id": "openai/gpt-oss-120b", "name": "GPT-OSS 120B", "badge": "Groq", "tag": "Flagship", "desc": "120B parameter high-capacity open model on Groq"},
+            {"id": "qwen/qwen3.8-27b", "name": "Qwen 3.8 27B", "badge": "Fast", "tag": "Recommended", "desc": "Balanced high-speed reasoning model on Groq"},
+            {"id": "openai/gpt-oss-20b", "name": "GPT-OSS 20B", "badge": "Ultra-Fast", "tag": "Economy", "desc": "Ultra low latency execution on Groq"}
+        ]
+    },
     "openrouter": {
         "name": "OpenRouter",
         "default_base_url": "https://openrouter.ai/api/v1",
@@ -546,6 +555,7 @@ PROVIDER_CATALOG = {
 
 # Legacy mapping for backwards-compatibility
 PRESET_MODELS = {
+    "groq": {"id": "openai/gpt-oss-120b", "name": "Groq GPT-OSS 120B", "provider": "groq", "default_base_url": "https://api.groq.com/openai/v1"},
     "gpt-4o-mini": {"id": "gpt-4o-mini", "name": "OpenAI GPT-4o Mini", "provider": "openai", "default_base_url": "https://api.openai.com/v1"},
     "gpt-4o": {"id": "gpt-4o", "name": "OpenAI GPT-4o", "provider": "openai", "default_base_url": "https://api.openai.com/v1"},
     "hermes-3-openrouter": {"id": "nousresearch/hermes-3-llama-3.1-70b", "name": "Hermes 3 (OpenRouter)", "provider": "openrouter", "default_base_url": "https://openrouter.ai/api/v1"},
@@ -555,27 +565,47 @@ PRESET_MODELS = {
 
 class LLMRuntimeConfig:
     def __init__(self):
-        self.api_key = settings.OPENAI_API_KEY
-        self.base_url = settings.OPENAI_BASE_URL
-        self.model_name = settings.OPENAI_MODEL_NAME or "nousresearch/hermes-3-llama-3.1-70b"
-
-        # Auto-detect initial provider from base_url or key
-        if self.base_url and "openrouter" in self.base_url.lower() or (self.api_key and "sk-or-" in self.api_key):
+        # Configure based on LLM_PROVIDER
+        prov = (settings.LLM_PROVIDER or "groq").lower()
+        if prov == "groq" and settings.GROQ_API_KEY:
+            self.provider = "groq"
+            self.api_key = settings.GROQ_API_KEY
+            self.base_url = settings.GROQ_BASE_URL
+            self.model_name = settings.GROQ_MODEL or "openai/gpt-oss-120b"
+        elif prov == "openrouter" and settings.OPENROUTER_API_KEY:
             self.provider = "openrouter"
+            self.api_key = settings.OPENROUTER_API_KEY
+            self.base_url = settings.OPENROUTER_BASE_URL
+            self.model_name = settings.OPENROUTER_MODEL or "nousresearch/hermes-3-llama-3.1-70b"
+        elif settings.OPENAI_API_KEY:
+            self.api_key = settings.OPENAI_API_KEY
+            self.base_url = settings.OPENAI_BASE_URL
+            self.model_name = settings.OPENAI_MODEL_NAME or "gpt-4o-mini"
+            self.provider = "openai"
+        elif settings.GROQ_API_KEY:
+            self.provider = "groq"
+            self.api_key = settings.GROQ_API_KEY
+            self.base_url = settings.GROQ_BASE_URL
+            self.model_name = settings.GROQ_MODEL or "openai/gpt-oss-120b"
         else:
-            self.provider = "openai" if (self.api_key and not "openrouter" in (self.base_url or "")) else "openrouter"
+            self.provider = "openrouter"
+            self.api_key = ""
+            self.base_url = "https://openrouter.ai/api/v1"
+            self.model_name = "nousresearch/hermes-3-llama-3.1-70b"
 
     def get_provider(self) -> str:
+        if hasattr(self, "provider") and self.provider:
+            return self.provider
         if self.base_url:
+            if "groq" in self.base_url.lower():
+                return "groq"
             if "openrouter" in self.base_url.lower():
                 return "openrouter"
             if "api.openai.com" in self.base_url.lower() or "openai" in self.base_url.lower():
                 return "openai"
             if "localhost" in self.base_url or "127.0.0.1" in self.base_url:
                 return "ollama"
-        if self.api_key and "sk-or-" in self.api_key:
-            return "openrouter"
-        return getattr(self, "provider", "openrouter")
+        return "groq"
 
     @property
     def preset_key(self) -> str:
@@ -825,5 +855,30 @@ def llm_generate(prompt: str, model_name: Optional[str] = None, max_tokens: Opti
     except Exception as e:
         print(f"[LLM] Live call failed ({e}), using SimulatedLLM fallback.")
         return SimulatedLLM().invoke(prompt)
+
+async def llm_stream(prompt: str, model_name: Optional[str] = None, max_tokens: Optional[int] = None):
+    """Async generator yielding chunks/tokens from the active LLM or SimulatedLLM."""
+    client = get_llm(model_name=model_name, max_tokens=max_tokens)
+    if isinstance(client, SimulatedLLM):
+        full_text = client.invoke(prompt)
+        words = full_text.split(" ")
+        for i, word in enumerate(words):
+            yield word + (" " if i < len(words) - 1 else "")
+            await asyncio.sleep(0.01)
+        return
+
+    try:
+        from langchain_core.messages import HumanMessage
+        async for chunk in client.astream([HumanMessage(content=prompt)]):
+            token = chunk.content if hasattr(chunk, 'content') else str(chunk)
+            if token:
+                yield token
+    except Exception as e:
+        print(f"[LLM] Live streaming failed ({e}), falling back to simulated stream.")
+        full_text = SimulatedLLM().invoke(prompt)
+        words = full_text.split(" ")
+        for i, word in enumerate(words):
+            yield word + (" " if i < len(words) - 1 else "")
+            await asyncio.sleep(0.01)
 
 

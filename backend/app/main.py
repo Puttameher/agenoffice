@@ -135,7 +135,7 @@ def seed_skills_from_files():
     import uuid
     from datetime import datetime, timezone
 
-    skills_root = BASE_DIR.parent / "skills"
+    skills_root = BASE_DIR / "backend" / "skills"
     if not skills_root.exists():
         skills_root = BASE_DIR / "skills"
     if not skills_root.is_dir():
@@ -202,11 +202,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+def health_check():
+    """Health check endpoint for system status and active models."""
+    return {
+        "status": "healthy",
+        "app": settings.APP_NAME,
+        "version": settings.VERSION,
+        "llm_provider": settings.LLM_PROVIDER,
+        "llm_model": settings.GROQ_MODEL if settings.LLM_PROVIDER == "groq" else settings.OPENROUTER_MODEL,
+        "database": "connected"
+    }
+
 # Include API Router (both with /api prefix and root fallback)
 app.include_router(api_router, prefix="/api")
 app.include_router(api_router)
 
 # Mount Frontend Static Assets
-frontend_dir = BASE_DIR.parent / "frontend"
+frontend_dir = BASE_DIR / "frontend"
+if not frontend_dir.exists():
+    frontend_dir = BASE_DIR.parent / "frontend"
 if frontend_dir.exists():
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")

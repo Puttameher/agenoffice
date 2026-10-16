@@ -199,5 +199,23 @@ def init_db():
     )
     """)
 
+    # 12. Decisions table (Jev System One and fallback routing decisions log)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS decisions (
+        id TEXT PRIMARY KEY,
+        input_hash TEXT NOT NULL,
+        prompt TEXT NOT NULL,
+        route TEXT NOT NULL,
+        confidence REAL NOT NULL,
+        choice TEXT,
+        score REAL,
+        noul REAL,
+        probabilities TEXT NOT NULL,   -- JSON dict
+        decider TEXT NOT NULL,         -- 'jev' or 'llm'
+        latency_ms REAL NOT NULL,
+        created_at TEXT NOT NULL
+    )
+    """)
+
     conn.commit()
     conn.close()

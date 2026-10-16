@@ -711,11 +711,11 @@ async def evaluation_node(state: AgentOfficeState) -> Dict[str, Any]:
 
     # Boost score if execution actually created files
     if state.files_created and eval_result.score < 0.8:
-        eval_result = type(eval_result)(
-            success=True,
-            score=max(eval_result.score, 0.85),
-            reason=f"{eval_result.reason} (files verified: {', '.join(state.files_created)})"
-        )
+        eval_result = eval_result.model_copy(update={
+            "success": True,
+            "score": max(eval_result.score, 0.85),
+            "reason": f"{eval_result.reason} (files verified: {', '.join(state.files_created)})"
+        })
 
     await event_bus.emit(
         event_type="EVALUATION_COMPLETED",

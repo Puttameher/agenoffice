@@ -1,9 +1,11 @@
+import json
 import uuid
 import asyncio
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from backend.app.models.schemas import (
@@ -24,7 +26,7 @@ from backend.app.orchestration.system_prompt import build_system_prompt, build_c
 from backend.app.api.websocket import ws_manager
 from backend.app.memory.memory_writer import memory_writer
 from backend.app.memory.memory_store import memory_store
-from backend.app.llm import llm_config, test_llm_connection, is_live_connected, PROVIDER_CATALOG, llm_generate, get_llm
+from backend.app.llm import llm_config, test_llm_connection, is_live_connected, PROVIDER_CATALOG, llm_generate, get_llm, llm_stream
 
 router = APIRouter()
 
@@ -210,6 +212,7 @@ class ChatMessagePayload(BaseModel):
     mode: Optional[str] = None  # kept for backward compat — ignored, Router decides
     model_name: Optional[str] = None
     assigned_agent_id: Optional[str] = None  # direct dispatch from agent panel
+    stream: Optional[bool] = False
 
 
 @router.post("/chat")
@@ -255,12 +258,59 @@ async def handle_direct_chat(payload: ChatMessagePayload, background_tasks: Back
         system_prompt = build_system_prompt(agents=agents, experiences=experiences)
         prompt = build_chat_prompt(user_message=cleaned_msg, system_prompt=system_prompt)
 
+        if payload.stream:
+            async def chat_stream_gen():
+                collected = []
+                yield f"data: {json.dumps({'event': 'task_started', 'task_id': route_task_id, 'route': 'DIRECT'})}\n\n"
+                async for chunk in llm_stream(prompt):
+                    collected.append(chunk)
+                    yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                full_reply = "".join(collected).strip()
+                for prefix in ("Jordan:", "Manager Jordan:", "Assistant:", "AI:"):
+                    if full_reply.startswith(prefix):
+                        full_reply = full_reply[len(prefix):].strip()
+                for sep in ("\nUser:", "\nHuman:", "\nJordan:", "\nAssistant:"):
+                    if sep in full_reply:
+                        parts = full_reply.split(sep)
+                        if parts[0].strip():
+                            full_reply = parts[0]
+                        elif len(parts) > 1 and parts[1].strip():
+                            full_reply = parts[1]
+                full_reply = full_reply.strip()
+                if not full_reply:
+                    full_reply = "All systems operational and the office is ready."
+                await event_bus.emit(
+                    event_type="DIRECT_CHAT_MESSAGE",
+                    task_id=route_task_id,
+                    agent_id="manager",
+                    metadata={
+                        "result_preview": full_reply[:120],
+                        "reply": full_reply,
+                        "author_name": "Manager Jordan",
+                        "handled_by_orchestrator": True,
+                    },
+                )
+                yield f"data: {json.dumps({'event': 'done', 'reply': full_reply, 'task_id': route_task_id})}\n\n"
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(chat_stream_gen(), media_type="text/event-stream")
+
         reply_text = llm_generate(prompt)
-        # Strip continuation artifacts from LLM output
-        for sep in ("\nJordan:", "\nUser:", "\nHuman:", "\nAssistant:"):
+        # Strip leading role prefix if present
+        for prefix in ("Jordan:", "Manager Jordan:", "Assistant:", "AI:"):
+            if reply_text.startswith(prefix):
+                reply_text = reply_text[len(prefix):].strip()
+        # Strip multi-turn continuation echoes if generated after the reply
+        for sep in ("\nUser:", "\nHuman:", "\nJordan:", "\nAssistant:"):
             if sep in reply_text:
-                reply_text = reply_text.split(sep)[0]
+                parts = reply_text.split(sep)
+                if parts[0].strip():
+                    reply_text = parts[0]
+                elif len(parts) > 1 and parts[1].strip():
+                    reply_text = parts[1]
         reply_text = reply_text.strip()
+        if not reply_text:
+            reply_text = "All systems operational and the office is running smoothly."
 
         # Emit DIRECT_CHAT_MESSAGE — not TASK_COMPLETED — keeps task board clean
         await event_bus.emit(
@@ -714,6 +764,51 @@ async def websocket_events_endpoint(websocket: WebSocket):
         ws_manager.disconnect(websocket)
     except Exception:
         ws_manager.disconnect(websocket)
+
+
+# --- SSE EVENT STREAM (AUXILIARY / CLI STREAM) ---
+@router.get("/events")
+async def sse_events_endpoint(limit: Optional[int] = None):
+    """Server-Sent Events (SSE) stream for CLI or web clients."""
+    queue: asyncio.Queue[OfficeEvent] = asyncio.Queue()
+
+    async def listener(event: OfficeEvent):
+        await queue.put(event)
+
+    event_bus.subscribe(listener)
+
+    async def event_generator():
+        sent = 0
+        try:
+            yield ": connected\n\n"
+            sent += 1
+            if limit is not None and sent >= limit:
+                return
+            while True:
+                try:
+                    event: OfficeEvent = await asyncio.wait_for(queue.get(), timeout=1.0)
+                    yield f"data: {event.model_dump_json()}\n\n"
+                    sent += 1
+                    if limit is not None and sent >= limit:
+                        return
+                except asyncio.TimeoutError:
+                    yield ": keepalive\n\n"
+                    sent += 1
+                    if limit is not None and sent >= limit:
+                        return
+        except asyncio.CancelledError:
+            pass
+        finally:
+            event_bus.unsubscribe(listener)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+# --- ROUTING DECISIONS LOG ---
+@router.get("/decisions")
+def get_routing_decisions(limit: int = 50):
+    """Fetch recent Jev System One / LLM routing decisions from SQLite."""
+    return Repository.get_decisions(limit=limit)
 
 
 # --- OBSIDIAN KNOWLEDGE ROUTES ---

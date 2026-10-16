@@ -690,3 +690,61 @@ class Repository:
             total_retries=total_retries,
             agent_task_counts=agent_counts
         )
+
+    @staticmethod
+    def save_decision(decision_data: dict) -> None:
+        """Log a routing decision (Jev or LLM fallback) to SQLite."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+        INSERT OR REPLACE INTO decisions (
+            id, input_hash, prompt, route, confidence, choice, score, noul, probabilities, decider, latency_ms, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            decision_data.get("id"),
+            decision_data.get("input_hash"),
+            decision_data.get("prompt"),
+            decision_data.get("route"),
+            decision_data.get("confidence", 0.0),
+            decision_data.get("choice"),
+            decision_data.get("score"),
+            decision_data.get("noul"),
+            json.dumps(decision_data.get("probabilities", {})),
+            decision_data.get("decider", "unknown"),
+            decision_data.get("latency_ms", 0.0),
+            decision_data.get("created_at")
+        ))
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def get_decisions(limit: int = 50) -> list[dict]:
+        """Fetch logged routing decisions."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM decisions ORDER BY created_at DESC LIMIT ?", (limit,))
+        rows = cursor.fetchall()
+        conn.close()
+        results = []
+        for r in rows:
+            probs = {}
+            if r["probabilities"]:
+                try:
+                    probs = json.loads(r["probabilities"])
+                except Exception:
+                    probs = {}
+            results.append({
+                "id": r["id"],
+                "input_hash": r["input_hash"],
+                "prompt": r["prompt"],
+                "route": r["route"],
+                "confidence": r["confidence"],
+                "choice": r["choice"],
+                "score": r["score"],
+                "noul": r["noul"],
+                "probabilities": probs,
+                "decider": r["decider"],
+                "latency_ms": r["latency_ms"],
+                "created_at": r["created_at"]
+            })
+        return results
