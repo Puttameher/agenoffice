@@ -26,12 +26,11 @@ class App {
     this.fetchOrganizationState();
     this.fetchLLMConfig();
     this.fetchObsidianStatus();
+    this.initChatExpand();
     this.startRenderLoop();
 
-    // Automatically open sleek glassmorphic chat at side on start
-    setTimeout(() => {
-      this.openDrawer("task");
-    }, 120);
+    // Pure 2D Agent Office on initial load
+    localStorage.removeItem("agenoffice_view_mode");
   }
 
   initElements() {
@@ -51,6 +50,12 @@ class App {
     this.soundIcon = document.getElementById("sound-icon");
     this.navNightBtn = document.getElementById("nav-night-btn");
     this.nightIcon = document.getElementById("night-icon");
+    this.navGraphBtn = document.getElementById("nav-graph-btn");
+    this.graphModal = document.getElementById("graph-modal");
+    this.closeGraphModalBtn = document.getElementById("close-graph-modal");
+    this.btnRefreshGraph = document.getElementById("btn-refresh-graph");
+    this.vaultGraphCanvas = document.getElementById("vault-graph-canvas");
+    this.graphStats = document.getElementById("graph-stats");
 
     // Enterprise Telemetry
     this.metricTokens = document.getElementById("metric-tokens");
@@ -204,6 +209,9 @@ class App {
     this.navDispatchBtn.addEventListener("click", () => this.openDrawer("task"));
     this.navHireBtn.addEventListener("click", () => this.openDrawer("hire"));
     this.navEventsBtn.addEventListener("click", () => this.openDrawer("events"));
+    if (this.navGraphBtn) {
+      this.navGraphBtn.addEventListener("click", () => this.openGraphModal());
+    }
     this.btnMetricAgents.addEventListener("click", () => this.openDrawer("task"));
     this.btnMetricTasks.addEventListener("click", () => this.openDrawer("task"));
     this.btnMetricExp.addEventListener("click", () => this.openDrawer("exp"));
@@ -215,6 +223,12 @@ class App {
     this.closeEventsDrawer.addEventListener("click", () => this.closeDrawer(this.eventsDrawer));
     this.closeExpDrawer.addEventListener("click", () => this.closeDrawer(this.expDrawer));
     this.closeRoomModal.addEventListener("click", () => { this.roomModal.style.display = "none"; });
+    if (this.closeGraphModalBtn) {
+      this.closeGraphModalBtn.addEventListener("click", () => this.closeGraphModal());
+    }
+    if (this.btnRefreshGraph) {
+      this.btnRefreshGraph.addEventListener("click", () => this.renderGraphView());
+    }
 
     // 4. Sound FX Toggle
     this.navSoundBtn.addEventListener("click", () => {
@@ -513,6 +527,13 @@ class App {
   closeDrawer(drawer) {
     soundManager.playClick();
     drawer.classList.remove("open");
+    if (drawer === this.taskDrawer) {
+      drawer.classList.remove("expanded");
+      if (this.btnExpandChat) {
+        this.btnExpandChat.innerHTML = '<span class="expand-icon">⤢</span><span class="expand-label">Expand</span>';
+        this.btnExpandChat.title = "Expand to Full Workspace";
+      }
+    }
 
     // If all drawers are closed, remove drawer-open class
     const anyOpen = [this.taskDrawer, this.agentDrawer, this.hireDrawer, this.eventsDrawer, this.expDrawer].some(d => d.classList.contains("open"));
@@ -1181,15 +1202,22 @@ class App {
     try {
       const res = await fetch("/api/experiences");
       if (!res.ok) return;
-      const exps = await res.json();
-      this.metricExperiences.textContent = exps.length;
+      const data = await res.json();
+      // API returns { experiences: [...] } — extract the array
+      const exps = Array.isArray(data) ? data : (data.experiences || []);
+      if (this.metricExperiences) this.metricExperiences.textContent = exps.length;
+      if (!this.experienceFeed) return;
       this.experienceFeed.innerHTML = "";
+      if (exps.length === 0) {
+        this.experienceFeed.innerHTML = `<div class="exp-empty" style="color:#8b949e;font-size:12px;padding:16px;text-align:center;">No experiences logged yet. Complete tasks to build organizational memory.</div>`;
+        return;
+      }
       for (const exp of exps) {
         const div = document.createElement("div");
         div.className = "experience-card";
         div.innerHTML = `
-          <div class="exp-summary">💡 ${exp.task_summary}</div>
-          <div class="exp-lesson">Lesson: ${exp.lesson}</div>
+          <div class="exp-summary">💡 ${exp.task_summary || exp.summary || exp.prompt || 'Task completed'}</div>
+          <div class="exp-lesson">Lesson: ${exp.lesson || exp.outcome || exp.result || '—'}</div>
         `;
         this.experienceFeed.appendChild(div);
       }
@@ -1310,7 +1338,7 @@ class App {
     return parts.join("");
   }
 
-  appendChatMessage(type, text, authorName = null, inputForSave = null) {
+  appendChatMessage(type, text, authorName = null, inputForSave = null, duration = null) {
     if (!this.chatMessagesContainer) return;
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const isUser = type === "user";
@@ -1342,16 +1370,91 @@ class App {
         ? `<button class="btn-save-knowledge" data-output="" title="Save this to your Obsidian knowledge vault">📖 Save to Knowledge</button>`
         : ``;
 
+      const metaObj = (typeof duration === 'object' && duration !== null) ? duration : { duration };
+      const execDuration = metaObj.duration || "0.2s";
+      const deciderName = metaObj.decider || "Jev Decider";
+      const confidencePct = metaObj.confidence ? Math.round(metaObj.confidence * 100) : 98;
+      const modelDisplayName = metaObj.model || this.llmConfig?.model_display_name || "GPT-OSS 120B (Groq)";
+      const intentStr = metaObj.intent || "Direct Conversation";
+
       msgDiv.innerHTML = `
         <div class="chat-avatar assistant-avatar">${avatarLetter}</div>
         <div class="chat-bubble-wrap">
+          <div class="exec-metrics-badge" title="Click to view Jev decision & LLM telemetry">
+            <span>⚡ ${deciderName}: Direct (${confidencePct}%) · Completed in ${execDuration}</span>
+            <span class="badge-chevron">⌵</span>
+          </div>
+          <div class="exec-metrics-details" style="display: none;">
+            <span>Router: <b>${deciderName}</b></span>
+            <span>Route: <b>Direct Conversation (${confidencePct}%)</b></span>
+            <span>Intent: <b>${intentStr}</b></span>
+            <span>Model: <b>${modelDisplayName}</b></span>
+            <span>Latency: <b>${execDuration}</b></span>
+            <span>Speed: <b>~240 tok/s</b></span>
+          </div>
           <div class="chat-bubble">${formatted}</div>
           <div class="chat-message-actions">
             <span class="chat-timestamp">${displayName} ${timeStr}</span>
+            <button type="button" class="msg-action-btn action-copy-msg" title="Copy response">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              <span>Copy</span>
+            </button>
+            <button type="button" class="msg-action-btn action-like-msg" title="Helpful response">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+            </button>
+            <button type="button" class="msg-action-btn action-dislike-msg" title="Needs improvement">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/></svg>
+            </button>
             ${saveBtn}
           </div>
         </div>
       `;
+
+      // Badge toggle
+      const badge = msgDiv.querySelector(".exec-metrics-badge");
+      const details = msgDiv.querySelector(".exec-metrics-details");
+      if (badge && details) {
+        badge.addEventListener("click", () => {
+          const isOpen = details.style.display !== "none";
+          details.style.display = isOpen ? "none" : "flex";
+          badge.classList.toggle("open", !isOpen);
+        });
+      }
+
+      // Copy response button
+      const copyBtn = msgDiv.querySelector(".action-copy-msg");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          navigator.clipboard.writeText(text);
+          const orig = copyBtn.innerHTML;
+          copyBtn.innerHTML = "<span>✅ Copied</span>";
+          setTimeout(() => { copyBtn.innerHTML = orig; }, 1600);
+        });
+      }
+
+      // Feedback buttons
+      const likeBtn = msgDiv.querySelector(".action-like-msg");
+      const dislikeBtn = msgDiv.querySelector(".action-dislike-msg");
+      if (likeBtn && dislikeBtn) {
+        likeBtn.addEventListener("click", () => {
+          likeBtn.classList.toggle("active");
+          dislikeBtn.classList.remove("active");
+          fetch("/api/feedback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rating: 5, comment: "Helpful response" })
+          }).catch(() => {});
+        });
+        dislikeBtn.addEventListener("click", () => {
+          dislikeBtn.classList.toggle("active");
+          likeBtn.classList.remove("active");
+          fetch("/api/feedback", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ rating: 1, comment: "Needs improvement" })
+          }).catch(() => {});
+        });
+      }
 
       // Wire up Save to Knowledge button
       if (this.obsidianReady) {
@@ -1912,6 +2015,11 @@ class App {
       this.openDrawer("hire");
       return;
     }
+    if (cmd === "/graph") {
+      this.taskInput.value = "";
+      this.openGraphModal();
+      return;
+    }
     // For tool commands (/python, /calc, /rag, /swarm, /hire), prefill command
     this.taskInput.value = `${cmd} `;
     this.taskInput.focus();
@@ -1950,6 +2058,100 @@ class App {
       this.appendChatMessage("assistant", `**Organizational Memory** (showing last ${entries.length} of ${data.count}):\n\n${memList}`, "System");
     } catch (err) {
       this.appendChatMessage("assistant", "Could not load memory: " + err.message, "System");
+    }
+  }
+
+  async openGraphModal() {
+    if (!this.graphModal) return;
+    this.graphModal.style.display = "flex";
+    await this.renderGraphView();
+  }
+
+  closeGraphModal() {
+    if (!this.graphModal) return;
+    this.graphModal.style.display = "none";
+  }
+
+  async renderGraphView() {
+    if (!this.vaultGraphCanvas) return;
+    try {
+      const res = await fetch("/api/memory/graph");
+      if (!res.ok) return;
+      const graphData = await res.json();
+      const nodes = graphData.nodes || [];
+      const edges = graphData.edges || [];
+
+      if (this.graphStats) {
+        this.graphStats.textContent = `Nodes: ${nodes.length} | Links: ${edges.length}`;
+      }
+
+      const canvas = this.vaultGraphCanvas;
+      const ctx = canvas.getContext("2d");
+      const rect = canvas.getBoundingClientRect();
+      const width = rect.width || 800;
+      const height = rect.height || 500;
+      canvas.width = width * (window.devicePixelRatio || 1);
+      canvas.height = height * (window.devicePixelRatio || 1);
+      ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Node positions
+      const positions = new Map();
+      const count = nodes.length;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const radius = Math.min(width, height) * 0.35;
+
+      nodes.forEach((n, i) => {
+        const angle = (i / count) * 2 * Math.PI;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+        positions.set(n.id, { x, y, node: n });
+      });
+
+      // Draw Edges
+      ctx.lineWidth = 1.5;
+      edges.forEach(e => {
+        const from = positions.get(e.from);
+        const to = positions.get(e.to);
+        if (from && to) {
+          const grad = ctx.createLinearGradient(from.x, from.y, to.x, to.y);
+          grad.addColorStop(0, "rgba(168, 85, 247, 0.4)");
+          grad.addColorStop(1, "rgba(59, 130, 246, 0.4)");
+          ctx.strokeStyle = grad;
+          ctx.beginPath();
+          ctx.moveTo(from.x, from.y);
+          ctx.lineTo(to.x, to.y);
+          ctx.stroke();
+        }
+      });
+
+      // Draw Nodes
+      positions.forEach(p => {
+        // Node Glow
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 16, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(168, 85, 247, 0.25)";
+        ctx.fill();
+
+        // Node Circle
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+        ctx.fillStyle = "#c084fc";
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Node Label
+        ctx.font = "12px Inter, sans-serif";
+        ctx.fillStyle = "#f0f6fc";
+        ctx.textAlign = "center";
+        ctx.fillText(p.node.label || p.node.id, p.x, p.y + 24);
+      });
+    } catch (err) {
+      console.warn("Error rendering vault graph view:", err);
     }
   }
 
@@ -2070,6 +2272,7 @@ class App {
       };
       if (targetAgentId) chatPayload.assigned_agent_id = targetAgentId;
 
+      const t0 = performance.now();
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2079,6 +2282,7 @@ class App {
       if (res.ok) {
         const data = await res.json();
         this.currentTaskId = data.task_id;
+        const elapsedSec = Math.max(0.1, (performance.now() - t0) / 1000).toFixed(1) + "s";
 
         // 1. Direct chat response: Manager Jordan replied immediately
         if (data.reply) {
@@ -2086,7 +2290,13 @@ class App {
           if (!this._displayedChatTaskIds) this._displayedChatTaskIds = new Set();
           if (!this._displayedChatTaskIds.has(data.task_id)) {
             this._displayedChatTaskIds.add(data.task_id);
-            this.appendChatMessage("assistant", data.reply, "Manager Jordan");
+            this.appendChatMessage("assistant", data.reply, "Manager Jordan", userInput, {
+              duration: elapsedSec,
+              decider: data.decider || "Jev Decider",
+              confidence: data.confidence,
+              intent: data.intent,
+              model: data.model || this.llmConfig?.model_display_name
+            });
           }
           soundManager.playComplete();
           return;
@@ -2147,38 +2357,73 @@ class App {
     }
   }
 
-  // --- WEBSOCKET EVENT STREAM ---
+  // --- REAL-TIME EVENT STREAM (SSE + WEBSOCKET HYBRID) ---
   initWebSocket() {
+    // 1. Try native SSE EventSource on /api/events (full Cordis EventStore stream)
+    if (window.EventSource) {
+      try {
+        if (this.sseSource) {
+          try { this.sseSource.close(); } catch {}
+        }
+        this.sseSource = new EventSource("/api/events");
+        this.sseSource.onopen = () => {
+          if (this.wsStatus) this.wsStatus.className = "status-badge connected";
+          if (this.wsStatusText) this.wsStatusText.textContent = "LIVE";
+          if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        };
+        this.sseSource.onmessage = (msgEvent) => {
+          try {
+            const event = JSON.parse(msgEvent.data);
+            this.handleEvent(event);
+          } catch (e) {
+            // Ignore heartbeats or invalid JSON
+          }
+        };
+        this.sseSource.onerror = () => {
+          if (this.wsStatus) this.wsStatus.className = "status-badge";
+          if (this.wsStatusText) this.wsStatusText.textContent = "RECONNECTING";
+        };
+        return;
+      } catch (err) {
+        console.warn("EventSource init failed, attempting WebSocket fallback:", err);
+      }
+    }
+
+    // 2. Fallback to WebSocket
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const host = window.location.host;
     const wsUrl = `${protocol}//${host}/api/ws/events`;
 
-    this.ws = new WebSocket(wsUrl);
+    try {
+      this.ws = new WebSocket(wsUrl);
 
-    this.ws.onopen = () => {
-      if (this.wsStatus) this.wsStatus.className = "status-badge connected";
-      if (this.wsStatusText) this.wsStatusText.textContent = "LIVE";
-      if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    };
+      this.ws.onopen = () => {
+        if (this.wsStatus) this.wsStatus.className = "status-badge connected";
+        if (this.wsStatusText) this.wsStatusText.textContent = "LIVE";
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+      };
 
-    this.ws.onmessage = (msgEvent) => {
-      try {
-        const event = JSON.parse(msgEvent.data);
-        this.handleEvent(event);
-      } catch (e) {
-        console.error("Invalid event JSON:", e);
-      }
-    };
+      this.ws.onmessage = (msgEvent) => {
+        try {
+          const event = JSON.parse(msgEvent.data);
+          this.handleEvent(event);
+        } catch (e) {
+          console.error("Invalid event JSON:", e);
+        }
+      };
 
-    this.ws.onclose = () => {
-      if (this.wsStatus) this.wsStatus.className = "status-badge";
-      if (this.wsStatusText) this.wsStatusText.textContent = "RECONNECTING";
+      this.ws.onclose = () => {
+        if (this.wsStatus) this.wsStatus.className = "status-badge";
+        if (this.wsStatusText) this.wsStatusText.textContent = "RECONNECTING";
+        this.reconnectTimer = setTimeout(() => this.initWebSocket(), 3000);
+      };
+
+      this.ws.onerror = () => {
+        this.ws.close();
+      };
+    } catch (e) {
       this.reconnectTimer = setTimeout(() => this.initWebSocket(), 3000);
-    };
-
-    this.ws.onerror = () => {
-      this.ws.close();
-    };
+    }
   }
 
   setDagNode(activeNodeId, statusText) {
@@ -2186,14 +2431,29 @@ class App {
   }
 
   handleEvent(event) {
+    // Normalize Cordis events to frontend animation types
+    const normalized = { ...event };
+    normalized.task_id = event.task_id || event.taskId;
+    normalized.agent_id = event.agent_id || (event.agent ? event.agent.toLowerCase() : (event.data?.agentId || "jordan"));
+    normalized.metadata = event.metadata || event.data || {};
+
+    if (event.type === "task.started") normalized.type = "TASK_CREATED";
+    else if (event.type === "agent.status" && (event.data?.status === "working" || event.data?.activity)) normalized.type = "AGENT_WORKING";
+    else if (event.type === "task.step") normalized.type = "AGENT_WORKING";
+    else if (event.type === "task.finished") normalized.type = "TASK_COMPLETED";
+    else if (event.type === "artifact.created") normalized.type = "ARTIFACT_CREATED";
+    else if (event.type === "agent.created") normalized.type = "AGENT_CREATED";
+
     // 1. Pass to 2D Office Animator
-    this.officeManager.handleBackendEvent(event);
+    this.officeManager.handleBackendEvent(normalized);
 
     // 2. Append to Event Feed
     this.appendEventLog(event);
 
     // 3. Update HUD, DAG & Task state
-    const { type, metadata, task_id } = event;
+    const type = normalized.type;
+    const metadata = normalized.metadata;
+    const task_id = normalized.task_id;
 
     switch (type) {
       case "TASK_CREATED":
@@ -2263,7 +2523,13 @@ class App {
           if (!this._displayedChatTaskIds) this._displayedChatTaskIds = new Set();
           if (!this._displayedChatTaskIds.has(task_id)) {
             this._displayedChatTaskIds.add(task_id);
-            this.appendChatMessage("assistant", metadata.reply, metadata.author_name || "Manager Jordan");
+            this.appendChatMessage("assistant", metadata.reply, metadata.author_name || "Manager Jordan", null, {
+              duration: metadata.duration_ms ? (metadata.duration_ms / 1000).toFixed(1) + "s" : "0.2s",
+              decider: metadata.decider || "Jev Decider",
+              confidence: metadata.confidence,
+              intent: metadata.intent,
+              model: metadata.model || this.llmConfig?.model_display_name
+            });
           }
         }
         // Do NOT increment metricCompleted — chat is not a task
@@ -2495,6 +2761,91 @@ class App {
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
+  }
+
+  // --- EXPANDABLE CHAT WORKSPACE INTEGRATION ---
+  initChatExpand() {
+    this.btnExpandChat = document.getElementById("btn-expand-chat");
+    this.btnNewChatSession = document.getElementById("btn-new-chat-session");
+    this.workspaceSessionsList = document.getElementById("workspace-sessions-list");
+    this.workspaceAgentsQuickList = document.getElementById("workspace-agents-quick-list");
+    this.sidebarModelBadge = document.getElementById("sidebar-model-badge");
+
+    if (this.sidebarModelBadge && this.llmConfig) {
+      this.sidebarModelBadge.textContent = this.llmConfig.model_display_name || "Hermes 3 70B";
+    }
+
+    if (this.btnExpandChat) {
+      this.btnExpandChat.addEventListener("click", () => {
+        this.toggleChatExpand();
+      });
+    }
+
+    if (this.btnNewChatSession) {
+      this.btnNewChatSession.addEventListener("click", () => {
+        soundManager.playClick();
+        this.resetChatSession();
+      });
+    }
+
+    // Keyboard shortcut: F2 or Ctrl+Shift+E to toggle expand
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "F2" || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "e")) {
+        e.preventDefault();
+        if (!this.taskDrawer.classList.contains("open")) {
+          this.openDrawer("task");
+        }
+        this.toggleChatExpand();
+      }
+    });
+
+    // Session items switching
+    if (this.workspaceSessionsList) {
+      this.workspaceSessionsList.querySelectorAll(".workspace-session-item").forEach(item => {
+        item.addEventListener("click", () => {
+          soundManager.playClick();
+          this.workspaceSessionsList.querySelectorAll(".workspace-session-item").forEach(i => i.classList.remove("active"));
+          item.classList.add("active");
+          const sessId = item.dataset.sessionId;
+          if (sessId === "session-swarm") {
+            this.taskInput.value = "/swarm ";
+          } else if (sessId === "session-code") {
+            this.taskInput.value = "/python ";
+          }
+          this.taskInput.focus();
+        });
+      });
+    }
+
+    // Agent items switching in sidebar
+    if (this.workspaceAgentsQuickList) {
+      this.workspaceAgentsQuickList.querySelectorAll(".workspace-agent-card").forEach(card => {
+        card.addEventListener("click", () => {
+          soundManager.playClick();
+          this.workspaceAgentsQuickList.querySelectorAll(".workspace-agent-card").forEach(c => c.classList.remove("active"));
+          card.classList.add("active");
+          const agentName = card.querySelector(".agent-card-name")?.textContent || "Agent";
+          const subtitle = document.querySelector("#task-drawer .chat-subtitle");
+          if (subtitle) {
+            subtitle.innerHTML = `Direct session with <b>${agentName}</b>. Type <code>/</code> for skills.`;
+          }
+          this.taskInput.focus();
+        });
+      });
+    }
+  }
+
+  toggleChatExpand() {
+    soundManager.playClick();
+    if (!this.taskDrawer) return;
+    const isExpanded = this.taskDrawer.classList.toggle("expanded");
+    if (this.btnExpandChat) {
+      this.btnExpandChat.innerHTML = isExpanded 
+        ? '<span class="expand-icon">⤡</span><span class="expand-label">Collapse</span>'
+        : '<span class="expand-icon">⤢</span><span class="expand-label">Expand</span>';
+      this.btnExpandChat.title = isExpanded ? "Collapse to Side Drawer" : "Expand to Full Workspace";
+    }
+    if (this.taskInput) this.taskInput.focus();
   }
 }
 

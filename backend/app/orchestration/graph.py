@@ -761,13 +761,13 @@ async def experience_node(state: AgentOfficeState) -> Dict[str, Any]:
 
     feedback_record = Repository.get_feedback(state.task_id)
 
-    memory_result = memory_writer.process(
+    memory_result = await memory_writer.aprocess(
         task_input=state.user_input,
         agent_output=state.agent_output or "",
         evaluation=eval_record,
         feedback=feedback_record
     )
-    print(f"[MemoryWriter] destination={memory_result.get('destination')} reason={memory_result.get('reason', '')[:60]}")
+    print(f"[MemoryWriter] destination={memory_result.get('destination')} triage={memory_result.get('triage_action')} reason={memory_result.get('reason', '')[:60]}")
 
     await event_bus.emit(
         event_type="EXPERIENCE_CREATED",

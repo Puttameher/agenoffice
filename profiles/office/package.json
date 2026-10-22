@@ -1,0 +1,18 @@
+{
+  "name": "office-profile",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "office-bundle": "file:../../bundles/office-bundle",
+    "office-hello": "file:../../plugins/office-hello"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "office-bundle"
+      ]
+    }
+  }
+}

@@ -1,0 +1,19 @@
+- insert:
+    - id: llm-pi-ai
+      name: '@deepseek-ai/dsh-llm-pi-ai'
+      config:
+        providers:
+          groq:
+            api: openai-completions
+            apiKeyEnv: GROQ_API_KEY
+            baseURL: https://api.groq.com/openai/v1
+            models:
+              - id: openai/gpt-oss-120b
+                contextWindow: 128000
+- id: agent-default-model
+  config:
+    provider: groq
+    model: openai/gpt-oss-120b
+- id: agent-instructions
+  disabled: true
+

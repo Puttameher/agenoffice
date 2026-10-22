@@ -77,6 +77,8 @@ def test_p1_websocket_events():
         assert "type" in event_json
         assert event_json["type"] in ["ROUTE_DECIDED", "DIRECT_CHAT_MESSAGE", "TASK_CREATED"]
 
+from datetime import datetime, timezone
+
 def test_p1_decision_logging_sqlite():
     """Verify decision persistence to SQLite."""
     test_decision = {
@@ -91,13 +93,14 @@ def test_p1_decision_logging_sqlite():
         "probabilities": {"DIRECT": 0.95, "TOOL": 0.03, "MANAGER": 0.02},
         "decider": "llm",
         "latency_ms": 45.2,
-        "created_at": "2026-10-16T16:00:00Z"
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
     Repository.save_decision(test_decision)
-    decisions = Repository.get_decisions(limit=10)
+    decisions = Repository.get_decisions(limit=100)
     assert len(decisions) >= 1
     found = next((d for d in decisions if d["id"] == "dec_test_001"), None)
     assert found is not None
     assert found["route"] == "DIRECT"
     assert found["confidence"] == 0.95
     assert found["probabilities"]["DIRECT"] == 0.95
+

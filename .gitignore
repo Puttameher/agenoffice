@@ -57,6 +57,15 @@ workspaces/
 .DS_Store
 Thumbs.db
 
+# Node.js
+node_modules/
+
+# Credentials & secrets
+.credentials.yaml
+
+# Vendored dependencies
+vendor/
+
 # Personal / Coursework scratch files
 FIN314_Academic_Task_1_Putta_Meher_Prakash.pdf
 lpu_logo_0.png

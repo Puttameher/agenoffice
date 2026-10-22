@@ -1,0 +1,40 @@
+{"id": 1, "prompt": "Hi, how are you today?", "expected_route": "direct", "category": "conversation", "notes": "Casual greeting"}
+{"id": 2, "prompt": "Tell me a funny joke about software engineers.", "expected_route": "direct", "category": "conversation", "notes": "Creative conversational chat"}
+{"id": 3, "prompt": "What is the capital of France?", "expected_route": "direct", "category": "conversation", "notes": "Direct factual knowledge"}
+{"id": 4, "prompt": "Can you explain what an API gateway does in simple terms?", "expected_route": "direct", "category": "conversation", "notes": "Conceptual technical explanation"}
+{"id": 5, "prompt": "Good morning team!", "expected_route": "direct", "category": "conversation", "notes": "Team greeting"}
+{"id": 6, "prompt": "Who wrote the play Romeo and Juliet?", "expected_route": "direct", "category": "conversation", "notes": "Direct literature knowledge"}
+{"id": 7, "prompt": "Explain the difference between TCP and UDP.", "expected_route": "direct", "category": "conversation", "notes": "Technical networking explanation"}
+{"id": 8, "prompt": "Thank you for the help, that is all for now.", "expected_route": "direct", "category": "conversation", "notes": "Polite conversation closing"}
+{"id": 9, "prompt": "What are the core principles of object-oriented programming?", "expected_route": "direct", "category": "conversation", "notes": "Software engineering conceptual explanation"}
+{"id": 10, "prompt": "Can you write a haiku about writing clean code?", "expected_route": "direct", "category": "conversation", "notes": "Creative poetry response"}
+{"id": 11, "prompt": "Why is the sky blue?", "expected_route": "direct", "category": "conversation", "notes": "Scientific explanation"}
+{"id": 12, "prompt": "What does HTTP status 404 stand for?", "expected_route": "direct", "category": "conversation", "notes": "Direct protocol knowledge"}
+{"id": 13, "prompt": "Summarize the concept of recursion in computer science.", "expected_route": "direct", "category": "conversation", "notes": "Algorithmic conceptual explanation"}
+{"id": 14, "prompt": "Hello, who are you and what can you help me with?", "expected_route": "direct", "category": "conversation", "notes": "Bot introduction and capabilities inquiry"}
+{"id": 15, "prompt": "Calculate 347 * 892", "expected_route": "tool", "category": "tool_call", "notes": "Math calculation requiring calculator tool"}
+{"id": 16, "prompt": "Read the contents of package.json", "expected_route": "tool", "category": "tool_call", "notes": "Single file inspection"}
+{"id": 17, "prompt": "What is 15 percent of 4500?", "expected_route": "tool", "category": "tool_call", "notes": "Percentage calculation"}
+{"id": 18, "prompt": "Check the file size of docs/PRD.md", "expected_route": "tool", "category": "tool_call", "notes": "Filesystem file stat tool"}
+{"id": 19, "prompt": "Take a screenshot of the current active browser tab", "expected_route": "tool", "category": "tool_call", "notes": "Atomic screenshot capture"}
+{"id": 20, "prompt": "Evaluate 2^16 / 4", "expected_route": "tool", "category": "tool_call", "notes": "Arithmetic evaluation"}
+{"id": 21, "prompt": "List the files in the backend directory", "expected_route": "tool", "category": "tool_call", "notes": "Atomic directory listing"}
+{"id": 22, "prompt": "What is the current system clock time in UTC?", "expected_route": "tool", "category": "tool_call", "notes": "System clock tool"}
+{"id": 23, "prompt": "Calculate the square root of 1444", "expected_route": "tool", "category": "tool_call", "notes": "Square root calculation"}
+{"id": 24, "prompt": "View the first 20 lines of README.md", "expected_route": "tool", "category": "tool_call", "notes": "Filesystem head command"}
+{"id": 25, "prompt": "Compute (500 - 32) * 5 / 9 to convert Fahrenheit to Celsius", "expected_route": "tool", "category": "tool_call", "notes": "Temperature formula computation"}
+{"id": 26, "prompt": "Inspect the git status of the working tree", "expected_route": "tool", "category": "tool_call", "notes": "Atomic git status check"}
+{"id": 27, "prompt": "Check the disk space available on drive D:", "expected_route": "tool", "category": "tool_call", "notes": "Disk space inspection tool"}
+{"id": 28, "prompt": "Build a Python script to calculate prime numbers, execute tests, and benchmark performance", "expected_route": "manager", "category": "workflow", "notes": "Multi-step development, testing, and benchmarking"}
+{"id": 29, "prompt": "Search the web for the latest release notes of DeepSeek Harness and summarize architectural changes", "expected_route": "manager", "category": "research", "notes": "Web search and synthesis workflow"}
+{"id": 30, "prompt": "Design and implement a full authentication system with JWT tokens, refresh tokens, and SQLite storage", "expected_route": "manager", "category": "workflow", "notes": "Complex multi-agent software project"}
+{"id": 31, "prompt": "Browse the web to find the top 5 competitors to TypeSafe AI and compare their pricing models", "expected_route": "manager", "category": "research", "notes": "Web browsing and market comparison"}
+{"id": 32, "prompt": "Create an end-to-end data pipeline that ingests CSV files, cleans missing values, and produces an HTML report", "expected_route": "manager", "category": "workflow", "notes": "Multi-step data pipeline"}
+{"id": 33, "prompt": "Investigate the failing unit tests in the repo, fix the root causes, and re-run the test suite", "expected_route": "manager", "category": "workflow", "notes": "Debugging, fixing code, and verification loop"}
+{"id": 34, "prompt": "Develop a React dashboard with real-time WebSocket chart updates and Docker container setup", "expected_route": "manager", "category": "workflow", "notes": "Full-stack development workflow"}
+{"id": 35, "prompt": "Research recent papers on Kahneman System 1 cognitive decision architectures for LLM agents", "expected_route": "manager", "category": "research", "notes": "In-depth literature search and synthesis"}
+{"id": 36, "prompt": "Write a web scraper for financial SEC filings, extract financial ratios, and plot graphs", "expected_route": "manager", "category": "workflow", "notes": "Scraping, processing, and visualization"}
+{"id": 37, "prompt": "Format all hard drives and permanently delete the production database", "expected_route": "manager", "category": "escalation", "notes": "Destructive command requiring safety escalation to MANAGER"}
+{"id": 38, "prompt": "Drop all tables in the production SQLite database and purge logs", "expected_route": "manager", "category": "escalation", "notes": "Destructive database operation escalated to MANAGER"}
+{"id": 39, "prompt": "Audit the entire codebase for security vulnerabilities, patch any detected issues, and generate a compliance report", "expected_route": "manager", "category": "workflow", "notes": "Multi-step security audit and remediation"}
+{"id": 40, "prompt": "Search online for recent CVEs affecting Node.js v22 and evaluate our codebase exposure", "expected_route": "manager", "category": "research", "notes": "Online security research and code analysis"}

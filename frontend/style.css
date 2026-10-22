@@ -2506,3 +2506,447 @@ textarea:focus {
   border-color: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
+
+/* ========================================================================== */
+/* EXPANDABLE CHAT WORKSPACE (AgenOffice Dark Glass Aesthetic)               */
+/* ========================================================================== */
+
+/* --- Expand Chat Button in Header --- */
+.expand-chat-btn {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.expand-chat-btn:hover {
+  background: rgba(56, 189, 248, 0.22);
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+  transform: translateY(-1px);
+}
+
+.expand-chat-btn .expand-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* --- Expanded Full-Screen Mode for #task-drawer --- */
+#task-drawer.expanded {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh !important;
+  transform: none !important;
+  z-index: 280 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: rgba(9, 12, 18, 0.96) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  box-shadow: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden;
+}
+
+#task-drawer.expanded .drawer-header {
+  padding: 14px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(13, 18, 28, 0.75);
+}
+
+#task-drawer.expanded .claude-title {
+  font-size: 15px;
+  letter-spacing: -0.2px;
+}
+
+/* --- Workspace 2-Column Body --- */
+.chat-workspace-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: calc(100% - 64px);
+  overflow: hidden;
+  position: relative;
+}
+
+#task-drawer.expanded .chat-workspace-body {
+  flex-direction: row;
+}
+
+/* --- Left Sidebar (Workspaces & Active Sessions) --- */
+.chat-workspace-sidebar {
+  display: none;
+}
+
+#task-drawer.expanded .chat-workspace-sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  min-width: 280px;
+  background: rgba(13, 18, 28, 0.6);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 18px 16px;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.sidebar-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-heading {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #64748b;
+}
+
+.sidebar-action-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.18s ease;
+}
+
+.sidebar-action-btn:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  color: #ffffff;
+}
+
+.workspace-sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workspace-session-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #94a3b8;
+  font-size: 12.5px;
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.workspace-session-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #f1f5f9;
+}
+
+.workspace-session-item.active {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.25);
+  color: #38bdf8;
+  font-weight: 600;
+}
+
+.session-dot {
+  font-size: 8px;
+  color: #64748b;
+}
+
+.workspace-session-item.active .session-dot {
+  color: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+  border-radius: 50%;
+}
+
+.session-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #94a3b8;
+}
+
+.workspace-session-item.active .session-badge {
+  background: rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+}
+
+/* --- Specialist Agent Cards in Sidebar --- */
+.workspace-agents-quick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workspace-agent-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.15s ease;
+}
+
+.workspace-agent-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateX(2px);
+}
+
+.workspace-agent-card.active {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: rgba(56, 189, 248, 0.2);
+}
+
+.agent-card-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.agent-card-meta {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-card-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-card-role {
+  font-size: 10.5px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-card-status {
+  margin-left: auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+  flex-shrink: 0;
+}
+
+/* Sidebar Footer Chips */
+.sidebar-footer-stats {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar-stat-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.sidebar-stat-chip .chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #38bdf8;
+  box-shadow: 0 0 6px #38bdf8;
+}
+
+.sidebar-stat-chip .chip-model {
+  color: #38bdf8;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+/* --- Main Stream Column --- */
+.chat-main-stream-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+#task-drawer.expanded .chat-main-stream-area {
+  max-width: 920px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 20px;
+}
+
+#task-drawer.expanded .chat-messages-container {
+  padding: 24px 0;
+}
+
+#task-drawer.expanded .chat-bubble {
+  max-width: 820px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+#task-drawer.expanded .chat-input-bar {
+  padding: 16px 0 20px 0;
+}
+
+#task-drawer.expanded .claude-prompt-capsule {
+  max-width: 100%;
+  padding: 14px 18px 12px 18px;
+  border-radius: 18px;
+}
+
+/* --- Collapsible Execution Metrics Badge --- */
+.exec-metrics-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 8px;
+  transition: all 0.18s ease;
+}
+
+.exec-metrics-badge:hover {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.badge-chevron {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.exec-metrics-badge.open .badge-chevron {
+  transform: rotate(180deg);
+}
+
+.exec-metrics-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+.exec-metrics-details b {
+  color: #f1f5f9;
+}
+
+/* --- Message Action Buttons (Copy, Like, Feedback) --- */
+.chat-message-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.msg-action-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-size: 11.5px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.msg-action-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+}
+
+.msg-action-btn.active {
+  color: #10b981;
+}
+
+/* --- Subtle Telemetry Status Strip --- */
+.chat-telemetry-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 0 2px 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.telemetry-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}

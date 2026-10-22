@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Press+Start+2P&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261019_harness_v4">
 </head>
 <body>
   <div id="app">
@@ -49,14 +49,7 @@
           <span class="metric-label">EXP</span>
           <span class="metric-value" id="metric-experiences">0</span>
         </div>
-        <div class="metric-card" id="btn-metric-tokens" title="Total Tokens Consumed">
-          <span class="metric-label">TOKENS</span>
-          <span class="metric-value" id="metric-tokens">0</span>
-        </div>
-        <div class="metric-card" id="btn-metric-cost" title="Total API Cost">
-          <span class="metric-label">COST</span>
-          <span class="metric-value" id="metric-cost">$0.00</span>
-        </div>
+
 
         <div class="status-badge connected" id="ws-status" title="Live Engine Connection">
           <span class="status-dot"></span>
@@ -65,7 +58,7 @@
 
         <!-- Action Buttons -->
         <div class="header-actions">
-          <button class="btn btn-primary btn-sm" id="nav-dispatch-btn" title="Open Glassmorphic Chat">
+          <button class="btn btn-primary btn-sm" id="nav-dispatch-btn" title="Open Workspace Chat">
             <span>💬 Chat</span>
           </button>
           <button class="btn btn-secondary btn-sm" id="nav-hire-btn" title="Hire Agent via Prompt">
@@ -76,6 +69,9 @@
           </button>
           <button class="btn btn-icon btn-sm" id="nav-events-btn" title="Live Event Feed">
             <span>📜 Feed</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" id="nav-graph-btn" title="Obsidian Knowledge Graph View">
+            <span>🕸️ Graph</span>
           </button>
           <button class="btn btn-icon btn-sm" id="nav-sound-btn" title="Audio Effects">
             <span id="sound-icon">🔊</span>
@@ -112,25 +108,106 @@
           <p class="chat-subtitle">Your personal AI runtime. Type <code>/</code> for skills.</p>
         </div>
         <div class="drawer-header-actions">
+          <button type="button" class="dock-btn expand-chat-btn" id="btn-expand-chat" title="Expand to Full Workspace">
+            <span class="expand-icon">⤢</span>
+            <span class="expand-label">Expand</span>
+          </button>
           <button type="button" class="dock-btn toggle-dock-btn" title="Toggle Dock Side (Left / Right)">⇋ Dock</button>
           <button class="close-btn" id="close-task-drawer" title="Close Chat">✕</button>
         </div>
       </div>
 
-      <!-- Scrollable Message Stream -->
-      <div class="chat-messages-container" id="chat-messages-container">
-        <div class="chat-msg chat-msg-assistant">
-          <div class="chat-avatar assistant-avatar">A</div>
-          <div class="chat-bubble-wrap">
-            <div class="chat-bubble">
-              Hey Meher! Ready to work &mdash; just type your task or question.<br><br>
-              <span class="sandbox-notice-pill" id="chat-status-pill">⚡ Engine Ready</span><br>
-              Use <code>/skills</code> to see available skills, or just start typing.
-            </div>
-            <div class="chat-timestamp">Assistant</div>
+      <!-- WORKSPACE BODY (Side-Drawer or Full-Screen Expanded) -->
+      <div class="chat-workspace-body">
+        <!-- Collapsible Left Sidebar (Active in Expanded Mode) -->
+        <aside class="chat-workspace-sidebar" id="chat-workspace-sidebar">
+          <div class="sidebar-section-header">
+            <span class="sidebar-heading">Workspaces & Sessions</span>
+            <button type="button" class="sidebar-action-btn" id="btn-new-chat-session" title="New Session">＋</button>
           </div>
-        </div>
-      </div>
+          <div class="workspace-sessions-list" id="workspace-sessions-list">
+            <div class="workspace-session-item active" data-session-id="session-main">
+              <span class="session-dot">●</span>
+              <span class="session-name">Direct Intervention</span>
+              <span class="session-badge">Active</span>
+            </div>
+            <div class="workspace-session-item" data-session-id="session-swarm">
+              <span class="session-dot">○</span>
+              <span class="session-name">Autonomous Swarm</span>
+              <span class="session-badge">Idle</span>
+            </div>
+            <div class="workspace-session-item" data-session-id="session-code">
+              <span class="session-dot">○</span>
+              <span class="session-name">Engineering & Python</span>
+              <span class="session-badge">Ready</span>
+            </div>
+          </div>
+
+          <div class="sidebar-section-header" style="margin-top: 16px;">
+            <span class="sidebar-heading">Specialist Agents</span>
+          </div>
+          <div class="workspace-agents-quick-list" id="workspace-agents-quick-list">
+            <div class="workspace-agent-card active" data-agent-id="manager-jordan">
+              <div class="agent-card-avatar" style="background: rgba(56, 189, 248, 0.2); color: #38bdf8;">J</div>
+              <div class="agent-card-meta">
+                <span class="agent-card-name">Manager Jordan</span>
+                <span class="agent-card-role">Executive Orchestrator</span>
+              </div>
+              <span class="agent-card-status"></span>
+            </div>
+            <div class="workspace-agent-card" data-agent-id="agent-hunter">
+              <div class="agent-card-avatar" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">H</div>
+              <div class="agent-card-meta">
+                <span class="agent-card-name">Hunter</span>
+                <span class="agent-card-role">Full Stack Developer</span>
+              </div>
+              <span class="agent-card-status"></span>
+            </div>
+            <div class="workspace-agent-card" data-agent-id="agent-nova">
+              <div class="agent-card-avatar" style="background: rgba(34, 197, 94, 0.2); color: #4ade80;">N</div>
+              <div class="agent-card-meta">
+                <span class="agent-card-name">Nova</span>
+                <span class="agent-card-role">Research Specialist</span>
+              </div>
+              <span class="agent-card-status"></span>
+            </div>
+            <div class="workspace-agent-card" data-agent-id="agent-sentinel">
+              <div class="agent-card-avatar" style="background: rgba(245, 158, 11, 0.2); color: #fbbf24;">S</div>
+              <div class="agent-card-meta">
+                <span class="agent-card-name">Sentinel</span>
+                <span class="agent-card-role">QA & System Safety</span>
+              </div>
+              <span class="agent-card-status"></span>
+            </div>
+          </div>
+
+          <div class="sidebar-footer-stats">
+            <div class="sidebar-stat-chip">
+              <span class="chip-dot"></span>
+              <span>Fast-Path: &lt;1ms</span>
+            </div>
+            <div class="sidebar-stat-chip">
+              <span class="chip-model" id="sidebar-model-badge">Hermes 3 70B</span>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main Chat Stream Column -->
+        <div class="chat-main-stream-area">
+          <!-- Scrollable Message Stream -->
+          <div class="chat-messages-container" id="chat-messages-container">
+            <div class="chat-msg chat-msg-assistant">
+              <div class="chat-avatar assistant-avatar">A</div>
+              <div class="chat-bubble-wrap">
+                <div class="chat-bubble">
+                  Hey Meher! Ready to work &mdash; just type your task or question.<br><br>
+                  <span class="sandbox-notice-pill" id="chat-status-pill">⚡ Engine Ready</span><br>
+                  Use <code>/skills</code> to see available skills, or click <b>⤢ Expand</b> to open the full workspace.
+                </div>
+                <div class="chat-timestamp">Assistant</div>
+              </div>
+            </div>
+          </div>
 
       <!-- Thinking / Live Status Bubble (managed dynamically) -->
       <div class="chat-typing-container" id="chat-typing-container" style="display: none;">
@@ -327,7 +404,17 @@
             </div>
           </div>
         </form>
-      </div>
+
+        <!-- Subtle Telemetry Status Strip -->
+        <div class="chat-telemetry-strip" id="chat-telemetry-strip">
+          <span class="telemetry-item">⚡ 240 tok/s</span>
+          <span class="telemetry-item">💾 Cache 95%</span>
+          <span class="telemetry-item">⭕ 4% context</span>
+          <span class="telemetry-item">🚀 Instant Fast-Route</span>
+        </div>
+      </div> <!-- /.chat-input-bar -->
+    </div> <!-- /.chat-main-stream-area -->
+  </div> <!-- /.chat-workspace-body -->
 
       <!-- Sleek Glassmorphism Model & API Key Settings Modal -->
       <div class="api-modal-backdrop" id="api-modal-backdrop" style="display: none;">
@@ -580,8 +667,29 @@
       </div>
     </div>
 
+    <!-- OBSIDIAN KNOWLEDGE GRAPH MODAL -->
+    <div class="modal-backdrop" id="graph-modal" style="display: none; z-index: 500;">
+      <div class="modal-box graph-modal-box" style="max-width: 960px; width: 92vw; height: 82vh; display: flex; flex-direction: column;">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="modal-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4); padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">Obsidian Vault</span>
+            <h3 style="margin: 4px 0 0 0; font-size: 16px;">Interactive Knowledge Graph</h3>
+          </div>
+          <button class="close-btn" id="close-graph-modal">✕</button>
+        </div>
+        <div class="modal-body graph-modal-body" style="flex: 1; position: relative; overflow: hidden; background: #070a10; border-radius: 8px; padding: 0; min-height: 400px;">
+          <canvas id="vault-graph-canvas" style="width: 100%; height: 100%; display: block;"></canvas>
+          <div id="graph-tooltip" style="position: absolute; display: none; background: rgba(13, 17, 23, 0.95); border: 1px solid #30363d; border-radius: 6px; padding: 8px 12px; color: #f0f6fc; font-size: 12px; pointer-events: none; z-index: 10; box-shadow: 0 8px 24px rgba(0,0,0,0.5);"></div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2);">
+          <div id="graph-stats" style="font-size: 12px; color: #8b949e;">Nodes: 5 | Links: 4</div>
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-refresh-graph">🔄 Refresh Topology</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
-  <script type="module" src="src/main.js?v=20260919_1"></script>
+  <script type="module" src="src/main.js?v=20261019_harness_v5"></script>
 </body>
 </html>

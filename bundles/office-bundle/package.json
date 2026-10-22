@@ -1,0 +1,21 @@
+{
+  "name": "office-bundle",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "office-hello": "file:../../plugins/office-hello",
+    "office-events": "file:../../plugins/office-events",
+    "office-roster": "file:../../plugins/office-roster",
+    "office-router": "file:../../plugins/office-router",
+    "office-tools": "file:../../plugins/office-tools",
+    "office-tasks": "file:../../plugins/office-tasks",
+    "office-memory": "file:../../plugins/office-memory",
+    "office-web": "file:../../plugins/office-web",
+    "office-gateway": "file:../../plugins/office-gateway"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

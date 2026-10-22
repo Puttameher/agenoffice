@@ -181,38 +181,33 @@ async def classify_route(
         print(f"[Router] Offline fallback → {decision.route.upper()} ({decision.reason})")
         return decision
 
-    # Build the prompt
-    context_block = ""
-    if conversation_context:
-        context_block = f"\n\nRecent context:\n{conversation_context}\n"
-
-    prompt = f"{_ROUTER_SYSTEM}{context_block}\n\nUser message: \"{message}\""
-
+    # Delegate to Jev Router (System One decision model with LLM fallback and safety escalation)
     try:
-        raw = llm_generate(prompt)
+        from backend.app.router.router import jev_router, DIRECT, TOOL as JEV_TOOL, MANAGER
+        j_decision = await jev_router.route(message)
+        route_map = {DIRECT: CHAT, JEV_TOOL: TOOL, MANAGER: AGENT}
+        mapped_route = route_map.get(j_decision.route, CHAT)
+        selected_tool = j_decision.required_tools[0] if j_decision.required_tools else None
+        if mapped_route == TOOL and not selected_tool:
+            lower = message.lower()
+            if any(w in lower for w in ["calculate", "compute"]) or re.search(r"\d\s*[\+\-\*\/]\s*\d", lower):
+                selected_tool = "calculator"
+            elif "weather" in lower:
+                selected_tool = "weather"
+            elif "time" in lower:
+                selected_tool = "time"
+            else:
+                selected_tool = "calculator"
 
-        # Extract JSON from response
-        match = re.search(r"\{[\s\S]*?\}", raw)
-        if match:
-            data = json.loads(match.group(0))
-        else:
-            data = json.loads(raw)
-
-        route = data.get("route", CHAT).lower()
-        if route not in (CHAT, TOOL, AGENT):
-            route = CHAT
-
-        tool = data.get("tool") or None
-        if isinstance(tool, str) and tool.lower() in ("null", "none", ""):
-            tool = None
-
-        reason = str(data.get("reason", ""))
-        confidence = float(data.get("confidence", 0.9))
-
-        decision = RouteDecision(route=route, tool=tool, reason=reason, confidence=confidence)
-        print(f"[Router] {decision.route.upper()} (conf={decision.confidence:.2f}) — {decision.reason}")
+        decision = RouteDecision(
+            route=mapped_route,
+            tool=selected_tool,
+            reason=j_decision.intent + (f" [{j_decision.escalation_reason}]" if j_decision.escalated else ""),
+            confidence=j_decision.confidence
+        )
+        print(f"[Router:Jev] {decision.route.upper()} (conf={decision.confidence:.2f}) — {decision.reason}")
         return decision
 
     except Exception as exc:
-        print(f"[Router] LLM classification failed ({exc}), using keyword fallback.")
+        print(f"[Router:Jev] Decision failed ({exc}), using keyword fallback.")
         return _keyword_route(message)

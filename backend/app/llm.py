@@ -14,6 +14,71 @@ class SimulatedLLM:
         prompt_lower = prompt.lower()
 
         # 0. Router classification
+        if "you are jev decider" in prompt_lower or "system one decision evaluator" in prompt_lower:
+            m = re.search(r'Evaluate this request:\s*\n?"?(.*?)"?\s*$', prompt, re.DOTALL | re.IGNORECASE)
+            req = m.group(1).strip() if m else prompt
+            req_low = req.lower()
+
+            tool_words = ["calculate", "compute", "power of", "divided by", "square root", "tip on", "weather", "calculator", "math"]
+            manager_words = ["research", "build", "create", "develop", "navigate", "scraper", "cli tool", "implement", "browse", "script", "unit test", "screenshot", "financial modeling", "markdown file"]
+
+            if any(w in req_low for w in tool_words) or re.search(r"\d\s*[\+\-\*\/]\s*\d", req_low):
+                return json.dumps({
+                    "route": "TOOL",
+                    "confidence": 0.95,
+                    "probabilities": {"DIRECT": 0.03, "TOOL": 0.92, "MANAGER": 0.05},
+                    "complexity": 0.6,
+                    "needs_tools_prob": 0.95,
+                    "needs_multistep_prob": 0.10,
+                    "required_tools": ["calculator"],
+                    "suggested_agents": ["Manager"],
+                    "intent": "Execute atomic math calculation or standalone tool"
+                })
+            elif any(w in req_low for w in manager_words):
+                return json.dumps({
+                    "route": "MANAGER",
+                    "confidence": 0.95,
+                    "probabilities": {"DIRECT": 0.03, "TOOL": 0.07, "MANAGER": 0.90},
+                    "complexity": 1.8,
+                    "needs_tools_prob": 0.90,
+                    "needs_multistep_prob": 0.85,
+                    "required_tools": ["filesystem", "terminal"],
+                    "suggested_agents": ["Alex", "Nova"],
+                    "intent": "Orchestrate multi-step execution workflow"
+                })
+            else:
+                return json.dumps({
+                    "route": "DIRECT",
+                    "confidence": 0.95,
+                    "probabilities": {"DIRECT": 0.90, "TOOL": 0.05, "MANAGER": 0.05},
+                    "complexity": 0.2,
+                    "needs_tools_prob": 0.05,
+                    "needs_multistep_prob": 0.05,
+                    "required_tools": [],
+                    "suggested_agents": ["Manager"],
+                    "intent": "Direct conversational inquiry"
+                })
+
+        if "evaluate this task outcome and decide whether to retain learning" in prompt_lower or "determine how to retain organizational learning" in prompt_lower:
+            # Check score & task
+            if any(w in prompt_lower for w in ["hello", "how are you", "joke", "capital of", "casual", "greeting", "thanks"]):
+                return json.dumps({"action": "IGNORE", "confidence": 0.95, "reason": "Casual conversation with no reusable workflow."})
+            elif any(w in prompt_lower for w in ["build", "create", "scraper", "script", "cli", "error", "fixed", "workflow", "architecture"]):
+                return json.dumps({"action": "SKILL", "confidence": 0.92, "reason": "Novel procedure or architectural insight worth saving."})
+            else:
+                return json.dumps({"action": "MEMORY", "confidence": 0.88, "reason": "Useful takeaway or lesson for future tasks."})
+
+        if "expert ai knowledge synthesizer" in prompt_lower or "extract distilled organizational learning" in prompt_lower:
+            return json.dumps({
+                "task_summary": "Executed task with agent workflow and validated results",
+                "strategy": "Systematic step-by-step problem decomposition and verification",
+                "what_worked": "Targeted tool execution and deterministic validation",
+                "what_failed": "None",
+                "machine_lesson": "Decompose complex workflows and verify intermediate artifacts before final synthesis.",
+                "obsidian_note_title": "Agentic Execution Pattern",
+                "obsidian_note_content": "## Architectural Pattern\n\n- [[System One]] fast decision routing\n- [[System Two]] LLM summarization and memory retention"
+            })
+
         if "routing classifier" in prompt_lower or "classify the user message into exactly one route" in prompt_lower:
             msg_match = re.search(r'User message:\s*"?(.*?)"?\s*$', prompt, re.DOTALL | re.IGNORECASE)
             msg_text = msg_match.group(1).strip() if msg_match else prompt

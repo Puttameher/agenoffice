@@ -40,7 +40,7 @@ class Settings(BaseModel):
     
     # TypeSafe System One (Jev)
     TYPESAFE_API_KEY: str = os.getenv("TYPESAFE_API_KEY", "")
-    TYPESAFE_BASE_URL: str = os.getenv("TYPESAFE_BASE_URL", "https://api.typesafe.ai/v1")
+    TYPESAFE_BASE_URL: str = os.getenv("TYPESAFE_BASE_URL", "https://api.typesafe.ai")
     TYPESAFE_MODEL: str = os.getenv("TYPESAFE_MODEL", "jev-latest")
     
     # Legacy / OpenAI fallback

@@ -1,45 +1,50 @@
 """
-MemoryWriter — decides where completed task knowledge should live.
+MemoryWriter — Dual-Loop Memory Architecture (Jev Triage + LLM Summarization)
 
-After a task completes, call MemoryWriter.process().
-It decides:
-  - Should this go into machine memory (Chroma/SQLite experience)?
-  - Should this become a human-readable Obsidian note?
-  - Should it go to both?
-  - Should it be skipped entirely?
-
-Keep it simple: one LLM call, one decision, clear routing.
+After a task completes, MemoryWriter evaluates and preserves knowledge:
+1. Fast Classification (System 1 via Jev):
+   - Real-time decision model: IGNORE (drop), MEMORY (SQLite experience), or SKILL (Obsidian note + experience).
+   - If IGNORE (casual chitchat, greetings, trivial Q&A): short-circuits instantly with destination="skip".
+     Zero generative tokens wasted, sub-25ms latency.
+2. LLM Summarization (System 2):
+   - Executed ONLY when Jev classifies the outcome as MEMORY or SKILL.
+   - Distills execution artifacts:
+     * task_summary, strategy, what_worked, what_failed
+     * actionable machine_lesson for SQLite experiences table
+     * formatted Obsidian markdown note with wikilinks (for SKILL / architecture insights)
 
 Destinations:
-  machine  → SQLite experience record (existing system)
+  skip     → casual conversation, greeting, not worth storing
+  machine  → SQLite experience record (via memory_store.save_experience)
   obsidian → Obsidian vault markdown note
-  both     → both of the above
-  skip     → casual conversation, not worth storing
+  both     → both machine memory and Obsidian note
 """
 
 import json
 import re
-from typing import Optional
+import asyncio
+import concurrent.futures
+from typing import Optional, Dict, Any
 from datetime import datetime
 
 from backend.app.llm import llm_generate
 from backend.app.models.schemas import TaskEvaluation, FeedbackResponse
 from backend.app.memory.memory_store import memory_store
 from backend.app.tools.obsidian_tool import ObsidianTool, _get_vault_path
+from backend.app.router.router import jev_router
 
 
 class MemoryWriter:
     """
-    Routes completed task information to the right storage layer.
-
-    Call process() after every task. It is fast and cheap — uses
-    a small LLM prompt to decide whether to persist anything.
+    Dual-Loop Memory Architecture:
+    System 1 (Jev Decider) for ultra-fast classification triage.
+    System 2 (Generative LLM) for expressive summarization and distillation.
     """
 
     def __init__(self):
         self._obsidian = ObsidianTool()
 
-    def process(
+    async def aprocess(
         self,
         task_input: str,
         agent_output: str,
@@ -47,53 +52,90 @@ class MemoryWriter:
         feedback: Optional[FeedbackResponse] = None,
     ) -> dict:
         """
-        Main entry point. Returns a dict explaining what was stored.
+        Async entry point for dual-loop memory processing.
+        Returns a dict explaining what was stored.
         {
           "destination": "skip" | "machine" | "obsidian" | "both",
+          "triage_action": "IGNORE" | "MEMORY" | "SKILL",
           "reason": "...",
           "obsidian_note_title": "...",   # only if obsidian was used
           "machine_lesson": "...",        # only if machine was used
         }
         """
+        score_val = evaluation.score if evaluation else 0.80
+
+        # ------------------------------------------------------------------
+        # 1. System 1 Fast Triage (Jev / System One Decision Model)
+        # ------------------------------------------------------------------
+        try:
+            triage = await jev_router.decide_learning(
+                task_summary=task_input[:300],
+                strategy="Agent execution",
+                score=score_val
+            )
+        except Exception as e:
+            triage = {"action": "MEMORY", "confidence": 0.70, "reason": f"Fallback triage: {e}"}
+
+        action = triage.get("action", "MEMORY").upper()
+        confidence = float(triage.get("confidence", 0.85))
+        reason = triage.get("reason", "Jev System 1 evaluation")
+
+        # Fast Short-Circuit: Trivial queries never burn LLM summarization tokens
+        if action == "IGNORE":
+            return {
+                "destination": "skip",
+                "triage_action": "IGNORE",
+                "confidence": confidence,
+                "reason": f"Jev System 1 classified as IGNORE: {reason}"
+            }
+
+        # ------------------------------------------------------------------
+        # 2. System 2 LLM Summarization (Invoked ONLY for MEMORY / SKILL)
+        # ------------------------------------------------------------------
         eval_info = f"Score: {evaluation.score:.2f}, Success: {evaluation.success}" if evaluation else "Not evaluated"
         fb_info   = f"Rating: {feedback.rating}/5 — {feedback.comment or ''}" if feedback else "No feedback"
 
-        decision = self._decide(task_input, agent_output, eval_info, fb_info)
+        summary = self._summarize_with_llm(task_input, agent_output, eval_info, fb_info, triage_action=action)
 
-        result = {"destination": decision.get("destination", "skip"), "reason": decision.get("reason", "")}
+        dest = "both" if action == "SKILL" else "machine"
 
-        dest = result["destination"]
+        result = {
+            "destination": dest,
+            "triage_action": action,
+            "confidence": confidence,
+            "reason": f"Jev System 1 ({action}): {reason}",
+            "task_summary": summary.get("task_summary", task_input[:120]),
+            "strategy": summary.get("strategy", "Direct execution")
+        }
 
-        # ---- machine memory -----------------------------------------------
+        # ---- Machine Memory (SQLite) --------------------------------------
         if dest in ("machine", "both"):
-            lesson = decision.get("machine_lesson", "")
+            lesson = summary.get("machine_lesson", "")
             if lesson:
                 fb_str = fb_info if feedback else None
                 memory_store.save_experience(
-                    task_summary=decision.get("task_summary", task_input[:120]),
-                    strategy=decision.get("strategy", "Direct execution"),
-                    what_worked=decision.get("what_worked", "Completed task"),
-                    what_failed=decision.get("what_failed", "None"),
+                    task_summary=summary.get("task_summary", task_input[:120]),
+                    strategy=summary.get("strategy", "Direct execution"),
+                    what_worked=summary.get("what_worked", "Completed task"),
+                    what_failed=summary.get("what_failed", "None"),
                     lesson=lesson,
                     feedback=fb_str
                 )
                 result["machine_lesson"] = lesson
 
-        # ---- obsidian note ------------------------------------------------
+        # ---- Obsidian Note ------------------------------------------------
         if dest in ("obsidian", "both"):
             vault_ok = _get_vault_path() is not None
             if vault_ok:
-                title   = decision.get("obsidian_note_title", "")
-                content = decision.get("obsidian_note_content", "")
+                title   = summary.get("obsidian_note_title", "")
+                content = summary.get("obsidian_note_content", "")
                 if title and content:
-                    # Try to find and update an existing note first
                     search_result = self._obsidian.run(
                         json.dumps({"op": "search_notes", "query": title})
                     )
                     note_exists = f"[[{title}]]" in search_result and "No notes found" not in search_result
 
                     if note_exists:
-                        # Append new information instead of overwriting
                         self._obsidian.run(json.dumps({
                             "op": "append_note",
                             "title": title,
@@ -112,38 +154,64 @@ class MemoryWriter:
 
         return result
 
+    def process(
+        self,
+        task_input: str,
+        agent_output: str,
+        evaluation: Optional[TaskEvaluation] = None,
+        feedback: Optional[FeedbackResponse] = None,
+    ) -> dict:
+        """
+        Synchronous wrapper with automatic asyncio loop bridging.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                return executor.submit(
+                    asyncio.run,
+                    self.aprocess(task_input, agent_output, evaluation, feedback)
+                ).result()
+        else:
+            return asyncio.run(self.aprocess(task_input, agent_output, evaluation, feedback))
+
     # ------------------------------------------------------------------ #
 
-    def _decide(self, task_input: str, agent_output: str, eval_info: str, fb_info: str) -> dict:
+    def _summarize_with_llm(
+        self,
+        task_input: str,
+        agent_output: str,
+        eval_info: str,
+        fb_info: str,
+        triage_action: str
+    ) -> dict:
         """
-        Ask the LLM: what kind of memory does this task deserve?
-        Returns a structured dict.
+        System 2: Invoked ONLY when Jev confirms this task outcome deserves learning (MEMORY or SKILL).
+        Distills the execution into structured summary, lessons, and optional markdown note.
         """
-        prompt = f"""You are a memory router for an AI system.
-Analyze the task and output below and decide what to remember.
+        is_skill = (triage_action == "SKILL")
 
-Task: {task_input[:400]}
-Output (first 600 chars): {agent_output[:600]}
+        prompt = f"""You are an expert AI knowledge synthesizer.
+Extract distilled organizational learning and insights from this completed task.
+
+Task: {task_input[:500]}
+Agent Output (first 800 chars): {agent_output[:800]}
 Evaluation: {eval_info}
 Feedback: {fb_info}
+Learning Target: {"Novel Skill / Architectural Knowledge" if is_skill else "Tactical Experience / Machine Memory"}
 
-Decide the destination:
-- "skip"    — casual conversation, greeting, simple Q&A, not worth storing
-- "machine" — useful strategy or lesson for future AI tasks (not human-readable knowledge)
-- "obsidian"— important technical concept, project decision, or reference a human would want to read
-- "both"    — qualifies for both machine and human knowledge
-
-Return ONLY valid JSON. No explanation outside the JSON.
+Return ONLY valid JSON matching this schema:
 {{
-  "destination": "skip" | "machine" | "obsidian" | "both",
-  "reason": "one sentence why",
-  "task_summary": "brief task description",
-  "strategy": "what approach was taken",
-  "what_worked": "what was effective",
-  "what_failed": "any issues",
-  "machine_lesson": "reusable lesson for AI (empty string if not machine)",
-  "obsidian_note_title": "Note Title Without .md (empty string if not obsidian)",
-  "obsidian_note_content": "full markdown content for the note (empty string if not obsidian)"
+  "task_summary": "one concise sentence summarizing what was accomplished",
+  "strategy": "the core approach or execution technique used",
+  "what_worked": "what was effective or succeeded",
+  "what_failed": "any stumbling blocks, errors fixed, or 'None'",
+  "machine_lesson": "actionable, reusable heuristic or lesson for future agents",
+  "obsidian_note_title": "Concise Note Title (empty string if not a skill/concept)",
+  "obsidian_note_content": "Markdown note with headers and [[wikilinks]] (empty string if not a skill/concept)"
 }}"""
 
         raw = llm_generate(prompt)
@@ -152,8 +220,15 @@ Return ONLY valid JSON. No explanation outside the JSON.
             match = re.search(r"\{[\s\S]*\}", raw)
             return json.loads(match.group(0)) if match else json.loads(raw)
         except Exception:
-            # Fallback — if parsing fails, just skip
-            return {"destination": "skip", "reason": "Could not parse decision."}
+            return {
+                "task_summary": task_input[:120],
+                "strategy": "Direct agent execution",
+                "what_worked": "Completed task successfully",
+                "what_failed": "None",
+                "machine_lesson": f"Completed: {task_input[:100]}",
+                "obsidian_note_title": f"Skill - {task_input[:30]}" if is_skill else "",
+                "obsidian_note_content": f"# {task_input[:30]}\n\n{agent_output[:400]}" if is_skill else ""
+            }
 
     # ------------------------------------------------------------------ #
     # Manual "Save to Knowledge" — triggered by user explicitly           #

@@ -1,0 +1,20 @@
+# Office Bundle cordis.patch.yml
+- insert:
+    - id: office-hello
+      name: 'office-hello'
+    - id: office-events
+      name: 'office-events'
+    - id: office-roster
+      name: 'office-roster'
+    - id: office-router
+      name: 'office-router'
+    - id: office-tools
+      name: 'office-tools'
+    - id: office-tasks
+      name: 'office-tasks'
+    - id: office-memory
+      name: 'office-memory'
+    - id: office-web
+      name: 'office-web'
+    - id: office-gateway
+      name: 'office-gateway'
